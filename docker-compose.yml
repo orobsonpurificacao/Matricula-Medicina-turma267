@@ -1,0 +1,9 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./matricula.db:/app/matricula.db
+      - ./uploads:/app/uploads
+    restart: unless-stopped
