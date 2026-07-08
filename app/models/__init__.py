@@ -23,6 +23,7 @@ class Aluno(Base):
     nome = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     cr = Column(Float, nullable=False)
+    senha_hash = Column(String(200), nullable=False)
     comprovante_path = Column(String(255), nullable=True)
     validado = Column(Boolean, default=False)
     criado_em = Column(DateTime, default=datetime.utcnow)
@@ -45,7 +46,7 @@ class Turma(Base):
     id = Column(Integer, primary_key=True)
     disciplina_id = Column(Integer, ForeignKey("disciplinas.id"), nullable=False)
     numero = Column(String(10), nullable=False, default="01")
-    tipo = Column(String(1), nullable=False, default="T")  # 'P' = prática | 'T' = teórica
+    tipo = Column(String(1), nullable=False, default="T")
     professor = Column(String(200), nullable=False)
     horario = Column(String(200), nullable=False)
     sala = Column(String(50), nullable=True)
