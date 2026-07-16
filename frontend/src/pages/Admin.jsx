@@ -544,7 +544,7 @@ export default function Admin() {
                 <div key={aluno.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-slate-800">{aluno.nome}</p>
-                    <p className="text-xs text-slate-500">{aluno.matricula} · CR {aluno.cr.toFixed(2)}</p>
+                    <p className="text-xs text-slate-500">{aluno.matricula} · CR {aluno.cr.toFixed(3)}</p>
                     {aluno.comprovante_path && (
                       <a
                         href={`/api/uploads/${aluno.comprovante_path.split('/').pop()}`}
