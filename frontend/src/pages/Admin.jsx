@@ -129,16 +129,16 @@ export default function Admin() {
     }
   }
 
-  async function rodarEscalonamento() {
-    if (!confirm('Rodar o escalonamento agora? Isso vai alocar ou enfileirar todas as inscrições pendentes.')) return
-    setAcao('escalonar')
+  async function rodarAlocacao() {
+    if (!confirm('Rodar a alocação agora? Isso vai alocar ou enfileirar todas as inscrições pendentes, com base na ordem de CR já vista na lista de escalonamento.')) return
+    setAcao('alocar')
     setMsg('')
     try {
-      const res = await adminService.escalonar()
-      setMsg(`Escalonamento concluído: ${res.data.alocados} alocados, ${res.data.em_fila} em fila.`)
+      const res = await adminService.alocar()
+      setMsg(`Alocação concluída: ${res.data.alocados} alocados, ${res.data.em_fila} em fila.`)
       await carregarTudo()
     } catch {
-      setErro('Não foi possível rodar o escalonamento.')
+      setErro('Não foi possível rodar a alocação.')
     } finally {
       setAcao('')
     }
@@ -380,14 +380,17 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* Escalonamento */}
+        {/* Alocação */}
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div>
-            <p className="text-sm font-semibold text-slate-800">Escalonamento por CR</p>
-            <p className="mt-0.5 text-xs text-slate-500">Recomendado: feche o período antes de rodar.</p>
+            <p className="text-sm font-semibold text-slate-800">Alocação de vagas por CR</p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Usa a ordem de CR (a mesma da lista de escalonamento) pra decidir quem fica com a vaga.
+              Recomendado: feche o período antes de rodar.
+            </p>
           </div>
-          <BotaoPrimario onClick={rodarEscalonamento} disabled={acao === 'escalonar'} className="whitespace-nowrap">
-            {acao === 'escalonar' ? 'Rodando...' : 'Rodar escalonamento'}
+          <BotaoPrimario onClick={rodarAlocacao} disabled={acao === 'alocar'} className="whitespace-nowrap">
+            {acao === 'alocar' ? 'Rodando...' : 'Rodar alocação'}
           </BotaoPrimario>
         </div>
 
@@ -395,7 +398,7 @@ export default function Admin() {
           onClick={() => navigate('/escalonamento')}
           className="-mt-3 self-start text-xs font-medium text-slate-500 hover:text-slate-700"
         >
-          Ver lista pública do escalonamento (o que os alunos veem) →
+          Ver lista pública de escalonamento (o que os alunos veem) →
         </button>
 
         {/* Gerenciamento de turmas */}
@@ -487,7 +490,7 @@ export default function Admin() {
                           onChange={e => setNovaTurma(v => ({ ...v, tipo: e.target.value }))}
                           className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-100"
                         >
-                          <option value="P">Prática (entra no escalonamento)</option>
+                          <option value="P">Prática (entra na alocação por CR)</option>
                           <option value="T">Teórica (confirmação automática)</option>
                         </select>
                       </div>

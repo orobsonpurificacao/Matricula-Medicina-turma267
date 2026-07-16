@@ -120,7 +120,7 @@ class InscricaoAlternativaCreate(BaseModel):
     nova_turma_id: int
 
 
-class ResultadoEscalonamento(BaseModel):
+class ResultadoAlocacao(BaseModel):
     alocados: int
     em_fila: int
     detalhes: List[dict]

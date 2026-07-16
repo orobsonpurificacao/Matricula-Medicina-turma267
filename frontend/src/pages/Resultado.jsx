@@ -122,8 +122,8 @@ export default function Resultado() {
           <div>
             <p className="text-base font-semibold text-slate-800">Escolha de matrícula finalizada</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Aguarde a validação do escalonamento por um representante e volte
-              para consultar suas alocações.
+              Aguarde a validação do seu comprovante e a alocação de vagas
+              por um representante, e volte aqui para consultar o resultado.
             </p>
           </div>
         </div>
@@ -165,7 +165,7 @@ export default function Resultado() {
     )
   }
 
-  // Já processado — dashboard com escalonamento e opção de editar
+  // Já processado — dashboard com status de alocação e opção de editar
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800">
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white shadow-sm">
@@ -177,6 +177,12 @@ export default function Resultado() {
             <p className="truncate text-sm font-semibold text-slate-800">Resultado do escalonamento</p>
             <p className="text-xs text-slate-500">{aluno.nome} · Mat. {aluno.matricula}</p>
           </div>
+          <button
+            onClick={() => { localStorage.removeItem("aluno"); navigate("/") }}
+            className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-50"
+          >
+            Sair
+          </button>
         </div>
       </header>
 
@@ -282,9 +288,10 @@ export default function Resultado() {
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm font-semibold text-slate-800">Editar turmas escolhidas</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Disciplinas já <strong>alocadas</strong> não podem ser trocadas por aqui — fale com um
-            representante se precisar mudar. Disciplinas ainda pendentes ou em fila podem ser
-            revistas na tela de escolha.
+            Você pode trocar de turma a qualquer momento — inclusive disciplinas
+            já <strong>alocadas</strong> — enquanto o período de inscrição estiver
+            aberto. Depois que o período fecha, só quem está em fila consegue
+            escolher alternativa (nessa mesma tela, mais acima).
           </p>
           <button
             onClick={() => navigate("/disciplinas")}

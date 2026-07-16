@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.escalonamento import rodar_escalonamento
+from app.alocacao import rodar_alocacao
 from app.models import Aluno, Inscricao, StatusInscricao, PeriodoInscricao
-from app.schemas import ResultadoEscalonamento, PeriodoOut, EstatisticasOut, AlunoOut
+from app.schemas import ResultadoAlocacao, PeriodoOut, EstatisticasOut, AlunoOut
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -24,10 +24,12 @@ def get_admin_atual(
     return aluno
 
 
-@router.post("/escalonar", response_model=ResultadoEscalonamento)
-def escalonar(db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
-    """Roda o escalonamento por CR. Pode ser chamado múltiplas vezes."""
-    return rodar_escalonamento(db)
+@router.post("/alocar", response_model=ResultadoAlocacao)
+def alocar(db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
+    """Roda a alocação de vagas com base no CR (ordem já vista na lista de escalonamento).
+    Pode ser chamado múltiplas vezes — ex: uma rodada normal, depois outra pra
+    processar quem escolheu alternativa."""
+    return rodar_alocacao(db)
 
 
 @router.get("/periodo", response_model=PeriodoOut)

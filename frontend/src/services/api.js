@@ -52,7 +52,7 @@ export const escalonamentoService = {
 }
 
 export const adminService = {
-  escalonar: () => api.post("/admin/escalonar"),
+  alocar: () => api.post("/admin/alocar"),
   pendentes: () => api.get("/alunos/admin/pendentes"),
   todos: () => api.get("/alunos/admin/todos"),
   validar: (id) => api.patch(`/alunos/admin/${id}/validar`),

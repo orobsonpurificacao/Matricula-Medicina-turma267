@@ -1,5 +1,13 @@
 """
-Escalonamento por CR.
+Alocação de vagas com base no CR.
+
+A LISTA de escalonamento (ordem por CR, sem mexer em nada) é outra coisa —
+fica em app/routers/escalonamento.py, só monta e mostra a ordem.
+
+Este arquivo é quem de fato EXECUTA a alocação: pega a ordem de CR e decide,
+turma por turma, quem ganha a vaga e quem vai pra fila. É uma ação que muda
+o banco (grava status "alocado"/"fila" e atualiza vagas_ocupadas) — só o
+admin roda isso, o aluno só consulta o resultado depois.
 
 Algoritmo:
   Para cada turma, ordena as inscrições pendentes pelo CR do aluno (desc).
@@ -11,11 +19,11 @@ Pode ser rodado múltiplas vezes (ex: segunda rodada para alternativas).
 
 from sqlalchemy.orm import Session, joinedload
 from app.models import Inscricao, Turma, Aluno, StatusInscricao
-from app.schemas import ResultadoEscalonamento
+from app.schemas import ResultadoAlocacao
 from collections import defaultdict
 
 
-def rodar_escalonamento(db: Session) -> ResultadoEscalonamento:
+def rodar_alocacao(db: Session) -> ResultadoAlocacao:
     # Busca inscrições pendentes ou alternativas pendentes, só de alunos já
     # validados pelo administrador — quem ainda não validou fica em "pendente"
     # até ser validado e o escalonamento rodar de novo.
@@ -82,7 +90,7 @@ def rodar_escalonamento(db: Session) -> ResultadoEscalonamento:
 
     db.commit()
 
-    return ResultadoEscalonamento(
+    return ResultadoAlocacao(
         alocados=alocados,
         em_fila=em_fila,
         detalhes=detalhes,

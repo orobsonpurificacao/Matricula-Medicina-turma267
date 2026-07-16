@@ -216,7 +216,7 @@ export default function Cadastro() {
 
                 <p className="mt-1 text-xs leading-5 text-blue-700">
                   O comprovante será validado pela administração antes
-                  da etapa final de escalonamento.
+                  da etapa final de alocação de vagas.
                 </p>
               </div>
             </div>
@@ -557,7 +557,7 @@ export default function Cadastro() {
                   <p className="text-xs leading-5 text-blue-800">
                     Você poderá selecionar as disciplinas logo após
                     concluir o cadastro. A validação do comprovante
-                    ocorrerá antes do escalonamento.
+                    ocorrerá antes da alocação de vagas.
                   </p>
                 </div>
               </div>

@@ -57,7 +57,12 @@ export default function Escalonamento() {
             <p className="text-sm font-semibold text-slate-800">Escalonamento — Turma 267</p>
             <p className="text-xs text-slate-500">Resultado público, ordenado por CR</p>
           </div>
-          <div className="w-12 shrink-0" />
+          <button
+            onClick={() => { localStorage.removeItem("aluno"); navigate("/") }}
+            className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-50"
+          >
+            Sair
+          </button>
         </div>
       </header>
 
@@ -79,7 +84,7 @@ export default function Escalonamento() {
         {disciplinasFiltradas.length === 0 ? (
           <p className="rounded-2xl border border-slate-200 bg-white py-8 text-center text-sm text-slate-400 shadow-sm">
             {disciplinas.length === 0
-              ? "O escalonamento ainda não foi processado por um representante."
+              ? "Ainda não há nenhuma inscrição pra mostrar aqui — a lista aparece assim que os alunos começarem a se inscrever."
               : "Nenhum resultado para essa busca."}
           </p>
         ) : (
