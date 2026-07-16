@@ -16,15 +16,19 @@ from collections import defaultdict
 
 
 def rodar_escalonamento(db: Session) -> ResultadoEscalonamento:
-    # Busca inscrições pendentes ou alternativas pendentes
+    # Busca inscrições pendentes ou alternativas pendentes, só de alunos já
+    # validados pelo administrador — quem ainda não validou fica em "pendente"
+    # até ser validado e o escalonamento rodar de novo.
     inscricoes = (
         db.query(Inscricao)
         .options(joinedload(Inscricao.aluno), joinedload(Inscricao.turma))
+        .join(Aluno)
         .filter(
             Inscricao.status.in_([
                 StatusInscricao.pendente,
                 StatusInscricao.alternativa_pendente,
-            ])
+            ]),
+            Aluno.validado == True,
         )
         .all()
     )

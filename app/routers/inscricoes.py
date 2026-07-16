@@ -7,12 +7,10 @@ from app.schemas import InscricaoCreate, InscricaoOut, InscricaoAlternativaCreat
 router = APIRouter(prefix="/inscricoes", tags=["Inscrições"])
 
 
-def _get_aluno_validado(matricula: str, db: Session) -> Aluno:
+def _get_aluno(matricula: str, db: Session) -> Aluno:
     aluno = db.query(Aluno).filter(Aluno.matricula == matricula).first()
     if not aluno:
         raise HTTPException(404, "Aluno não encontrado")
-    if not aluno.validado:
-        raise HTTPException(403, "Comprovante ainda não validado pelo administrador")
     return aluno
 
 
@@ -28,7 +26,7 @@ def inscrever(
     inscricoes: list[InscricaoCreate],
     db: Session = Depends(get_db),
 ):
-    aluno = _get_aluno_validado(matricula, db)
+    aluno = _get_aluno(matricula, db)
     _checar_periodo_aberto(db)
 
     criadas = []

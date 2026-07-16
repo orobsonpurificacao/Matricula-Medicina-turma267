@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.escalonamento import rodar_escalonamento
 from app.models import Aluno, Inscricao, StatusInscricao, PeriodoInscricao
-from app.schemas import ResultadoEscalonamento, PeriodoOut, EstatisticasOut
+from app.schemas import ResultadoEscalonamento, PeriodoOut, EstatisticasOut, AlunoOut
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -79,3 +79,47 @@ def get_estatisticas(db: Session = Depends(get_db), admin: Aluno = Depends(get_a
         ).count(),
         periodo_aberto=periodo.aberto if periodo else False,
     )
+
+
+@router.get("/administradores", response_model=list[AlunoOut])
+def listar_administradores(db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
+    return db.query(Aluno).filter(Aluno.is_admin == True).all()
+
+
+@router.post("/promover/{aluno_id}", response_model=AlunoOut)
+def promover_admin(
+    aluno_id: int, db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)
+):
+    """Concede is_admin a um aluno já cadastrado. Precisa já ser admin pra usar isso —
+    o primeiro admin do sistema ainda precisa ser marcado direto no banco (via SSH)."""
+    aluno = db.query(Aluno).filter(Aluno.id == aluno_id).first()
+    if not aluno:
+        raise HTTPException(404, "Aluno não encontrado")
+    aluno.is_admin = True
+    db.commit()
+    db.refresh(aluno)
+    return aluno
+
+
+@router.post("/rebaixar/{aluno_id}", response_model=AlunoOut)
+def rebaixar_admin(
+    aluno_id: int, db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)
+):
+    """Remove is_admin de um aluno. Bloqueado se for o último admin restante,
+    pra ninguém ficar trancado fora do painel sem acesso SSH."""
+    aluno = db.query(Aluno).filter(Aluno.id == aluno_id).first()
+    if not aluno:
+        raise HTTPException(404, "Aluno não encontrado")
+
+    total_admins = db.query(Aluno).filter(Aluno.is_admin == True).count()
+    if aluno.is_admin and total_admins <= 1:
+        raise HTTPException(
+            400,
+            "Não é possível remover o último administrador do sistema. "
+            "Promova outro admin antes de rebaixar este.",
+        )
+
+    aluno.is_admin = False
+    db.commit()
+    db.refresh(aluno)
+    return aluno

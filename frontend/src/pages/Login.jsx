@@ -23,12 +23,6 @@ export default function Login() {
       const res = await alunoService.login(matricula, senha)
 
       localStorage.setItem('aluno', JSON.stringify(res.data))
-
-      if (res.data?.is_admin) {
-        navigate('/admin')
-        return
-      }
-
       navigate('/disciplinas')
     } catch (err) {
       if (err.response?.status === 404) {

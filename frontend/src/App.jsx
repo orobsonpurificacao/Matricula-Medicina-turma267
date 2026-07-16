@@ -4,6 +4,7 @@ import Cadastro from './pages/Cadastro'
 import Disciplinas from './pages/Disciplinas'
 import Confirmacao from './pages/Confirmacao'
 import Resultado from './pages/Resultado'
+import Escalonamento from './pages/Escalonamento'
 import Admin from './pages/Admin'
 
 function RotaProtegida({ children }) {
@@ -32,6 +33,9 @@ export default function App() {
         } />
         <Route path="/resultado" element={
           <RotaProtegida><Resultado /></RotaProtegida>
+        } />
+        <Route path="/escalonamento" element={
+          <RotaProtegida><Escalonamento /></RotaProtegida>
         } />
         <Route path="/admin" element={
           <RotaProtegidaAdmin><Admin /></RotaProtegidaAdmin>

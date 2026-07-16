@@ -47,6 +47,10 @@ export const inscricaoService = {
   escolherAlternativa: (data) => api.post("/inscricoes/alternativa/escolher", data),
 }
 
+export const escalonamentoService = {
+  listar: () => api.get("/escalonamento/lista"),
+}
+
 export const adminService = {
   escalonar: () => api.post("/admin/escalonar"),
   pendentes: () => api.get("/alunos/admin/pendentes"),

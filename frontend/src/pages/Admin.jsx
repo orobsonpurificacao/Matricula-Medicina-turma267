@@ -4,10 +4,30 @@ import { adminService, disciplinaService, turmaService, alunoService } from '../
 
 function Stat({ label, value }) {
   return (
-    <div className="bg-white/5 border border-white/10 rounded-lg px-4 py-3 flex flex-col gap-1">
-      <span className="text-xs text-white/35">{label}</span>
-      <span className="text-xl font-medium text-white/90">{value}</span>
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
     </div>
+  )
+}
+
+function BotaoPrimario({ children, className = '', ...props }) {
+  return (
+    <button
+      {...props}
+      className={`rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 focus:outline-none focus:ring-4 focus:ring-orange-100 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function Input(props) {
+  return (
+    <input
+      {...props}
+      className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-100"
+    />
   )
 }
 
@@ -224,17 +244,17 @@ export default function Admin() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
-        <p className="text-white/40 text-sm">Carregando painel...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+        <p className="text-sm text-slate-500">Carregando painel...</p>
       </div>
     )
   }
 
   if (erro && !stats) {
     return (
-      <div className="min-h-screen bg-[#0f1117] flex flex-col items-center justify-center gap-3">
-        <p className="text-red-400 text-sm">{erro}</p>
-        <button onClick={() => navigate('/disciplinas')} className="text-blue-400 text-xs hover:text-blue-300">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-100">
+        <p className="text-sm text-red-700">{erro}</p>
+        <button onClick={() => navigate('/disciplinas')} className="text-xs font-medium text-orange-600 hover:text-orange-700">
           Voltar
         </button>
       </div>
@@ -242,45 +262,51 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f1117] p-6">
-      <div className="max-w-3xl mx-auto flex flex-col gap-6">
-
-        <div className="flex items-center justify-between border-b border-white/5 pb-4">
+    <div className="min-h-screen bg-slate-100 text-slate-800">
+      {/* Cabeçalho */}
+      <header className="border-b border-slate-200 bg-white shadow-sm">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-5 py-4">
           <div>
-            <h1 className="text-lg font-medium text-white/90">Painel Admin</h1>
-            <p className="text-xs text-white/35 mt-0.5">Turma 267 — Medicina UFBA</p>
+            <p className="text-sm font-semibold text-slate-900">Painel Admin</p>
+            <p className="text-xs text-slate-500">Turma 267 · Medicina UFBA</p>
           </div>
-          <button onClick={() => navigate('/disciplinas')} className="text-xs text-white/35 hover:text-white/60">
+          <button
+            onClick={() => navigate('/disciplinas')}
+            className="text-xs font-medium text-slate-500 hover:text-slate-700"
+          >
             Sair do admin
           </button>
         </div>
+      </header>
+
+      <div className="mx-auto flex max-w-4xl flex-col gap-6 px-5 py-6">
 
         {msg && (
-          <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
             {msg}
           </p>
         )}
         {erro && (
-          <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {erro}
           </p>
         )}
 
         {/* Controle de período */}
-        <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div>
-            <p className="text-sm text-white/85">Período de inscrição</p>
-            <p className="text-xs text-white/35 mt-0.5">
+            <p className="text-sm font-semibold text-slate-800">Período de inscrição</p>
+            <p className="mt-0.5 text-xs text-slate-500">
               {periodoAberto ? 'Alunos podem se inscrever em turmas agora.' : 'Inscrições fechadas para alunos.'}
             </p>
           </div>
           <button
             onClick={togglePeriodo}
             disabled={acao === 'periodo'}
-            className={`text-xs font-medium rounded-lg px-4 py-2 transition-colors disabled:opacity-40 ${
+            className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
               periodoAberto
-                ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/20'
-                : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/20'
+                ? 'bg-red-500 text-white hover:bg-red-600'
+                : 'bg-emerald-500 text-white hover:bg-emerald-600'
             }`}
           >
             {acao === 'periodo' ? '...' : periodoAberto ? 'Fechar período' : 'Abrir período'}
@@ -291,28 +317,30 @@ export default function Admin() {
         <div>
           <button
             onClick={() => setMostrarAdmins(v => !v)}
-            className="flex items-center justify-between w-full text-xs text-white/40 mb-2 uppercase tracking-wide hover:text-white/60"
+            className="mb-2 flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-700"
           >
             <span>Administradores ({admins.length})</span>
             <span>{mostrarAdmins ? '−' : '+'}</span>
           </button>
 
           {mostrarAdmins && (
-            <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex flex-col gap-3">
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex flex-col gap-2">
                 {admins.map(a => (
                   <div key={a.id} className="flex items-center justify-between gap-3 text-sm">
-                    <span className="text-white/85">
-                      {a.nome} <span className="text-white/35">({a.matricula})</span>
+                    <span className="text-slate-800">
+                      {a.nome} <span className="text-slate-500">({a.matricula})</span>
                       {a.matricula === alunoAtual.matricula && (
-                        <span className="text-blue-400 text-xs ml-1">você</span>
+                        <span className="ml-1.5 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                          você
+                        </span>
                       )}
                     </span>
                     <button
                       onClick={() => rebaixar(a.id)}
                       disabled={acao === `rebaixar-${a.id}` || admins.length <= 1}
                       title={admins.length <= 1 ? 'Não é possível remover o último admin' : ''}
-                      className="text-xs bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/20 rounded-lg px-2.5 py-1 disabled:opacity-30"
+                      className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Remover acesso
                     </button>
@@ -320,25 +348,20 @@ export default function Admin() {
                 ))}
               </div>
 
-              <form onSubmit={promoverPorMatricula} className="border-t border-white/5 pt-3 flex flex-col gap-2">
-                <p className="text-xs text-white/40">Promover novo admin (a pessoa precisa já estar cadastrada)</p>
+              <form onSubmit={promoverPorMatricula} className="flex flex-col gap-2 border-t border-slate-100 pt-3">
+                <p className="text-xs text-slate-500">Promover novo admin (a pessoa precisa já estar cadastrada)</p>
                 <div className="flex gap-2">
-                  <input
+                  <Input
                     placeholder="Matrícula"
                     value={matriculaPromover}
                     onChange={e => setMatriculaPromover(e.target.value)}
                     required
-                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/85 placeholder-white/20 outline-none focus:border-blue-500/50"
                   />
-                  <button
-                    type="submit"
-                    disabled={acao === 'promover'}
-                    className="bg-blue-500 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-medium rounded-lg px-4 py-2 transition-colors"
-                  >
+                  <BotaoPrimario type="submit" disabled={acao === 'promover'} className="whitespace-nowrap">
                     {acao === 'promover' ? '...' : 'Promover'}
-                  </button>
+                  </BotaoPrimario>
                 </div>
-                {erroPromover && <p className="text-xs text-red-400">{erroPromover}</p>}
+                {erroPromover && <p className="text-xs text-red-600">{erroPromover}</p>}
               </form>
             </div>
           )}
@@ -346,8 +369,8 @@ export default function Admin() {
 
         {/* Estatísticas */}
         <div>
-          <p className="text-xs text-white/40 mb-2 uppercase tracking-wide">Visão geral</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Visão geral</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Stat label="Total de alunos" value={stats.total_alunos} />
             <Stat label="Comprovantes pendentes" value={stats.comprovantes_pendentes} />
             <Stat label="Comprovantes validados" value={stats.comprovantes_validados} />
@@ -358,42 +381,43 @@ export default function Admin() {
         </div>
 
         {/* Escalonamento */}
-        <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div>
-            <p className="text-sm text-white/85">Escalonamento por CR</p>
-            <p className="text-xs text-white/35 mt-0.5">
-              Recomendado: feche o período antes de rodar.
-            </p>
+            <p className="text-sm font-semibold text-slate-800">Escalonamento por CR</p>
+            <p className="mt-0.5 text-xs text-slate-500">Recomendado: feche o período antes de rodar.</p>
           </div>
-          <button
-            onClick={rodarEscalonamento}
-            disabled={acao === 'escalonar'}
-            className="bg-blue-500 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-medium rounded-lg px-4 py-2 transition-colors"
-          >
+          <BotaoPrimario onClick={rodarEscalonamento} disabled={acao === 'escalonar'} className="whitespace-nowrap">
             {acao === 'escalonar' ? 'Rodando...' : 'Rodar escalonamento'}
-          </button>
+          </BotaoPrimario>
         </div>
+
+        <button
+          onClick={() => navigate('/escalonamento')}
+          className="-mt-3 self-start text-xs font-medium text-slate-500 hover:text-slate-700"
+        >
+          Ver lista pública do escalonamento (o que os alunos veem) →
+        </button>
 
         {/* Gerenciamento de turmas */}
         <div>
           <button
             onClick={() => setMostrarTurmas(v => !v)}
-            className="flex items-center justify-between w-full text-xs text-white/40 mb-2 uppercase tracking-wide hover:text-white/60"
+            className="mb-2 flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-700"
           >
             <span>Gerenciar disciplinas e turmas</span>
             <span>{mostrarTurmas ? '−' : '+'}</span>
           </button>
 
           {mostrarTurmas && (
-            <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex flex-col gap-4">
+            <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
 
               {/* Seletor de disciplina */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-white/40">Disciplina</label>
+                <label className="text-xs font-medium text-slate-600">Disciplina</label>
                 <select
                   value={disciplinaSelecionada ?? ''}
                   onChange={e => setDisciplinaSelecionada(e.target.value ? parseInt(e.target.value, 10) : null)}
-                  className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/85 outline-none focus:border-blue-500/50"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-100"
                 >
                   <option value="">Selecione uma disciplina</option>
                   {disciplinas.map(d => (
@@ -410,37 +434,37 @@ export default function Admin() {
                     {/* Turmas existentes */}
                     <div className="flex flex-col gap-2">
                       {disc.turmas.length === 0 && (
-                        <p className="text-xs text-white/25 py-2">Nenhuma turma cadastrada ainda.</p>
+                        <p className="py-2 text-xs text-slate-400">Nenhuma turma cadastrada ainda.</p>
                       )}
                       {disc.turmas.map(t => (
-                        <div key={t.id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center justify-between gap-3">
-                          <div className="min-w-0 text-xs text-white/70">
-                            <p className="text-sm text-white/85">
+                        <div key={t.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <div className="min-w-0 text-xs text-slate-600">
+                            <p className="text-sm font-medium text-slate-800">
                               Turma {t.numero} ({t.tipo === 'P' ? 'Prática' : 'Teórica'})
                             </p>
-                            <p className="text-white/35">{t.professor} · {t.horario}{t.sala ? ` · ${t.sala}` : ''}</p>
-                            <p className="text-white/35">{t.vagas_ocupadas}/{t.vagas} vagas ocupadas</p>
+                            <p className="text-slate-500">{t.professor} · {t.horario}{t.sala ? ` · ${t.sala}` : ''}</p>
+                            <p className="text-slate-500">{t.vagas_ocupadas}/{t.vagas} vagas ocupadas</p>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex shrink-0 items-center gap-2">
                             <input
                               type="number"
                               min={t.vagas_ocupadas}
                               placeholder={String(t.vagas)}
                               value={editandoVagas[t.id] ?? ''}
                               onChange={e => setEditandoVagas(prev => ({ ...prev, [t.id]: e.target.value }))}
-                              className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white/85 outline-none focus:border-blue-500/50"
+                              className="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
                             />
                             <button
                               onClick={() => salvarVagas(t.id)}
                               disabled={acao === `vagas-${t.id}` || editandoVagas[t.id] === undefined}
-                              className="text-xs bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 rounded-lg px-2.5 py-1.5 disabled:opacity-30"
+                              className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               Salvar
                             </button>
                             <button
                               onClick={() => excluirTurma(t.id)}
                               disabled={acao === `excluir-turma-${t.id}`}
-                              className="text-xs bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/20 rounded-lg px-2.5 py-1.5 disabled:opacity-30"
+                              className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               Excluir
                             </button>
@@ -450,62 +474,53 @@ export default function Admin() {
                     </div>
 
                     {/* Formulário de nova turma */}
-                    <form onSubmit={criarTurma} className="border-t border-white/5 pt-3 flex flex-col gap-2">
-                      <p className="text-xs text-white/40">Nova turma para {disc.codigo}</p>
+                    <form onSubmit={criarTurma} className="flex flex-col gap-2 border-t border-slate-100 pt-3">
+                      <p className="text-xs text-slate-500">Nova turma para {disc.codigo}</p>
                       <div className="grid grid-cols-2 gap-2">
-                        <input
+                        <Input
                           placeholder="Número (ex: 03)"
                           value={novaTurma.numero}
                           onChange={e => setNovaTurma(v => ({ ...v, numero: e.target.value }))}
-                          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/85 placeholder-white/20 outline-none focus:border-blue-500/50"
                         />
                         <select
                           value={novaTurma.tipo}
                           onChange={e => setNovaTurma(v => ({ ...v, tipo: e.target.value }))}
-                          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/85 outline-none focus:border-blue-500/50"
+                          className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-100"
                         >
                           <option value="P">Prática (entra no escalonamento)</option>
                           <option value="T">Teórica (confirmação automática)</option>
                         </select>
                       </div>
-                      <input
+                      <Input
                         placeholder="Professor(a)"
                         value={novaTurma.professor}
                         onChange={e => setNovaTurma(v => ({ ...v, professor: e.target.value }))}
                         required
-                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/85 placeholder-white/20 outline-none focus:border-blue-500/50"
                       />
-                      <input
+                      <Input
                         placeholder="Horário (ex: Ter/Qui 08:50–10:35)"
                         value={novaTurma.horario}
                         onChange={e => setNovaTurma(v => ({ ...v, horario: e.target.value }))}
                         required
-                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/85 placeholder-white/20 outline-none focus:border-blue-500/50"
                       />
                       <div className="grid grid-cols-2 gap-2">
-                        <input
+                        <Input
                           placeholder="Sala (opcional)"
                           value={novaTurma.sala}
                           onChange={e => setNovaTurma(v => ({ ...v, sala: e.target.value }))}
-                          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/85 placeholder-white/20 outline-none focus:border-blue-500/50"
                         />
-                        <input
+                        <Input
                           type="number"
                           min="1"
                           placeholder="Vagas"
                           value={novaTurma.vagas}
                           onChange={e => setNovaTurma(v => ({ ...v, vagas: e.target.value }))}
                           required
-                          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/85 placeholder-white/20 outline-none focus:border-blue-500/50"
                         />
                       </div>
-                      <button
-                        type="submit"
-                        disabled={acao === 'criar-turma'}
-                        className="bg-blue-500 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-medium rounded-lg py-2 transition-colors"
-                      >
+                      <BotaoPrimario type="submit" disabled={acao === 'criar-turma'} className="w-full">
                         {acao === 'criar-turma' ? 'Criando...' : 'Adicionar turma'}
-                      </button>
+                      </BotaoPrimario>
                     </form>
                   </>
                 )
@@ -516,42 +531,42 @@ export default function Admin() {
 
         {/* Comprovantes pendentes */}
         <div>
-          <p className="text-xs text-white/40 mb-2 uppercase tracking-wide">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
             Comprovantes pendentes ({pendentes.length})
           </p>
           {pendentes.length === 0 ? (
-            <p className="text-xs text-white/25 py-4 text-center border border-white/5 rounded-lg">
+            <p className="rounded-2xl border border-slate-200 bg-white py-4 text-center text-xs text-slate-400 shadow-sm">
               Nenhum comprovante pendente.
             </p>
           ) : (
             <div className="flex flex-col gap-2">
               {pendentes.map(aluno => (
-                <div key={aluno.id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center justify-between gap-3">
+                <div key={aluno.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                   <div className="min-w-0">
-                    <p className="text-sm text-white/85 truncate">{aluno.nome}</p>
-                    <p className="text-xs text-white/35">{aluno.matricula} · CR {aluno.cr.toFixed(2)}</p>
+                    <p className="truncate text-sm font-medium text-slate-800">{aluno.nome}</p>
+                    <p className="text-xs text-slate-500">{aluno.matricula} · CR {aluno.cr.toFixed(2)}</p>
                     {aluno.comprovante_path && (
                       <a
                         href={`/api/uploads/${aluno.comprovante_path.split('/').pop()}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs text-blue-400 hover:text-blue-300"
+                        className="text-xs font-medium text-blue-600 hover:text-blue-700"
                       >
                         Ver comprovante
                       </a>
                     )}
                   </div>
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex shrink-0 gap-2">
                     <button
                       onClick={() => validar(aluno.id)}
                       disabled={acao === `validar-${aluno.id}`}
-                      className="text-xs bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/20 rounded-lg px-3 py-1.5 disabled:opacity-40"
+                      className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Validar
                     </button>
                     <button
                       onClick={() => { setRejeitando(aluno.id); setMotivo('') }}
-                      className="text-xs bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/20 rounded-lg px-3 py-1.5"
+                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
                     >
                       Rejeitar
                     </button>
@@ -565,26 +580,26 @@ export default function Admin() {
 
       {/* Modal simples de rejeição */}
       {rejeitando !== null && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-6 z-50">
-          <div className="bg-[#151821] border border-white/10 rounded-lg p-5 w-full max-w-sm flex flex-col gap-3">
-            <p className="text-sm text-white/85">Motivo da rejeição (opcional)</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-6">
+          <div className="flex w-full max-w-sm flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+            <p className="text-sm font-semibold text-slate-800">Motivo da rejeição (opcional)</p>
             <textarea
               value={motivo}
               onChange={e => setMotivo(e.target.value)}
               placeholder="Ex: comprovante ilegível, dados divergentes..."
-              className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/85 placeholder-white/20 outline-none focus:border-red-500/50 transition-colors resize-none h-20"
+              className="h-20 resize-none rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-red-400 focus:bg-white focus:ring-4 focus:ring-red-100"
             />
-            <div className="flex justify-end gap-2 mt-1">
+            <div className="mt-1 flex justify-end gap-2">
               <button
                 onClick={() => setRejeitando(null)}
-                className="text-xs text-white/40 hover:text-white/60 px-3 py-2"
+                className="px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-700"
               >
                 Cancelar
               </button>
               <button
                 onClick={confirmarRejeicao}
                 disabled={acao === `rejeitar-${rejeitando}`}
-                className="text-xs bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white rounded-lg px-4 py-2"
+                className="rounded-xl bg-red-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Confirmar rejeição
               </button>
