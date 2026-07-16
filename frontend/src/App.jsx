@@ -11,6 +11,13 @@ function RotaProtegida({ children }) {
   return aluno ? children : <Navigate to="/" replace />
 }
 
+function RotaProtegidaAdmin({ children }) {
+  const raw = localStorage.getItem('aluno')
+  if (!raw) return <Navigate to="/" replace />
+  const aluno = JSON.parse(raw)
+  return aluno.is_admin ? children : <Navigate to="/disciplinas" replace />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -26,7 +33,9 @@ export default function App() {
         <Route path="/resultado" element={
           <RotaProtegida><Resultado /></RotaProtegida>
         } />
-        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin" element={
+          <RotaProtegidaAdmin><Admin /></RotaProtegidaAdmin>
+        } />
       </Routes>
     </BrowserRouter>
   )

@@ -26,8 +26,19 @@ class Aluno(Base):
     senha_hash = Column(String(200), nullable=False)
     comprovante_path = Column(String(255), nullable=True)
     validado = Column(Boolean, default=False)
+    recusado = Column(Boolean, default=False)
+    motivo_recusa = Column(String(255), nullable=True)
+    is_admin = Column(Boolean, default=False, nullable=False)
     criado_em = Column(DateTime, default=datetime.utcnow)
     inscricoes = relationship("Inscricao", back_populates="aluno")
+
+
+class PeriodoInscricao(Base):
+    """Singleton (sempre 1 linha, id=1). Controla se alunos podem se inscrever."""
+    __tablename__ = "periodo_inscricao"
+    id = Column(Integer, primary_key=True, default=1)
+    aberto = Column(Boolean, default=False, nullable=False)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Disciplina(Base):

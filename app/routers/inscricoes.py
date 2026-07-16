@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
-from app.models import Aluno, Turma, Inscricao, StatusInscricao
+from app.models import Aluno, Turma, Inscricao, StatusInscricao, PeriodoInscricao
 from app.schemas import InscricaoCreate, InscricaoOut, InscricaoAlternativaCreate
 
 router = APIRouter(prefix="/inscricoes", tags=["Inscrições"])
@@ -16,6 +16,12 @@ def _get_aluno_validado(matricula: str, db: Session) -> Aluno:
     return aluno
 
 
+def _checar_periodo_aberto(db: Session):
+    periodo = db.query(PeriodoInscricao).filter(PeriodoInscricao.id == 1).first()
+    if not periodo or not periodo.aberto:
+        raise HTTPException(400, "Período de inscrição está fechado")
+
+
 @router.post("/{matricula}", response_model=list[InscricaoOut], status_code=201)
 def inscrever(
     matricula: str,
@@ -23,6 +29,7 @@ def inscrever(
     db: Session = Depends(get_db),
 ):
     aluno = _get_aluno_validado(matricula, db)
+    _checar_periodo_aberto(db)
 
     criadas = []
     for item in inscricoes:

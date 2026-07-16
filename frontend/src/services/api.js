@@ -4,6 +4,17 @@ const api = axios.create({
   baseURL: "/api",
 })
 
+// Injeta a matrícula do aluno logado em toda request — usado pelo backend
+// pra checar is_admin nas rotas /admin. Sistema não usa JWT.
+api.interceptors.request.use((config) => {
+  const raw = localStorage.getItem("aluno")
+  if (raw) {
+    const aluno = JSON.parse(raw)
+    config.headers["X-Aluno-Matricula"] = aluno.matricula
+  }
+  return config
+})
+
 export const alunoService = {
   cadastrar: (formData) => api.post("/alunos/", formData, {
     headers: { "Content-Type": "multipart/form-data" }
@@ -19,6 +30,15 @@ export const alunoService = {
 
 export const disciplinaService = {
   listar: () => api.get("/disciplinas/"),
+  criar: (data) => api.post("/disciplinas/admin/", data),
+  editar: (id, data) => api.patch(`/disciplinas/admin/${id}`, data),
+  excluir: (id) => api.delete(`/disciplinas/admin/${id}`),
+}
+
+export const turmaService = {
+  criar: (data) => api.post("/disciplinas/admin/turmas", data),
+  editar: (id, data) => api.patch(`/disciplinas/admin/turmas/${id}`, data),
+  excluir: (id) => api.delete(`/disciplinas/admin/turmas/${id}`),
 }
 
 export const inscricaoService = {
@@ -30,7 +50,16 @@ export const inscricaoService = {
 export const adminService = {
   escalonar: () => api.post("/admin/escalonar"),
   pendentes: () => api.get("/alunos/admin/pendentes"),
+  todos: () => api.get("/alunos/admin/todos"),
   validar: (id) => api.patch(`/alunos/admin/${id}/validar`),
+  rejeitar: (id, motivo) => api.patch(`/alunos/admin/${id}/rejeitar`, { motivo }),
+  estatisticas: () => api.get("/admin/estatisticas"),
+  getPeriodo: () => api.get("/admin/periodo"),
+  abrirPeriodo: () => api.post("/admin/periodo/abrir"),
+  fecharPeriodo: () => api.post("/admin/periodo/fechar"),
+  administradores: () => api.get("/admin/administradores"),
+  promover: (id) => api.post(`/admin/promover/${id}`),
+  rebaixar: (id) => api.post(`/admin/rebaixar/${id}`),
 }
 
 export default api

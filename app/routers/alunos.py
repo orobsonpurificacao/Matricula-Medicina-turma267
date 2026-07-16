@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Aluno
-from app.schemas import AlunoOut, AlunoAdmin
+from app.schemas import AlunoOut, AlunoAdmin, RejeitarComprovante
+from app.routers.admin import get_admin_atual
 from passlib.context import CryptContext
 import shutil, os, uuid
 
@@ -68,19 +69,38 @@ def buscar_aluno(matricula: str, db: Session = Depends(get_db)):
     return aluno
 
 @router.get("/admin/pendentes", response_model=list[AlunoAdmin])
-def listar_pendentes(db: Session = Depends(get_db)):
-    return db.query(Aluno).filter(Aluno.validado == False).all()
+def listar_pendentes(db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
+    return db.query(Aluno).filter(Aluno.validado == False, Aluno.recusado == False).all()
 
 @router.get("/admin/todos", response_model=list[AlunoAdmin])
-def listar_todos(db: Session = Depends(get_db)):
+def listar_todos(db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
     return db.query(Aluno).all()
 
 @router.patch("/admin/{aluno_id}/validar", response_model=AlunoOut)
-def validar_aluno(aluno_id: int, db: Session = Depends(get_db)):
+def validar_aluno(aluno_id: int, db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
     aluno = db.query(Aluno).filter(Aluno.id == aluno_id).first()
     if not aluno:
         raise HTTPException(404, "Aluno nao encontrado")
     aluno.validado = True
+    aluno.recusado = False
+    aluno.motivo_recusa = None
+    db.commit()
+    db.refresh(aluno)
+    return aluno
+
+@router.patch("/admin/{aluno_id}/rejeitar", response_model=AlunoOut)
+def rejeitar_aluno(
+    aluno_id: int,
+    payload: RejeitarComprovante,
+    db: Session = Depends(get_db),
+    admin: Aluno = Depends(get_admin_atual),
+):
+    aluno = db.query(Aluno).filter(Aluno.id == aluno_id).first()
+    if not aluno:
+        raise HTTPException(404, "Aluno nao encontrado")
+    aluno.validado = False
+    aluno.recusado = True
+    aluno.motivo_recusa = payload.motivo
     db.commit()
     db.refresh(aluno)
     return aluno

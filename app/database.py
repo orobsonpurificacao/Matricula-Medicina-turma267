@@ -23,6 +23,19 @@ def get_db():
 def init_db():
     Base.metadata.create_all(bind=engine)
     _seed_disciplinas()
+    _seed_periodo()
+
+
+def _seed_periodo():
+    """Garante que a linha singleton de PeriodoInscricao existe (id=1, fechado por padrão)."""
+    from app.models import PeriodoInscricao
+    db = SessionLocal()
+    try:
+        if not db.query(PeriodoInscricao).filter(PeriodoInscricao.id == 1).first():
+            db.add(PeriodoInscricao(id=1, aberto=False))
+            db.commit()
+    finally:
+        db.close()
 
 
 def _horario(sigaa: str) -> str:
