@@ -2,13 +2,6 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { escalonamentoService } from "../services/api"
 
-const STATUS_INFO = {
-  pendente: { label: "Pendente", cor: "border-slate-200 bg-slate-50 text-slate-600" },
-  alocado: { label: "Alocado", cor: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-  fila: { label: "Fila", cor: "border-amber-200 bg-amber-50 text-amber-700" },
-  alternativa_pendente: { label: "Alternativa", cor: "border-amber-200 bg-amber-50 text-amber-700" },
-}
-
 export default function Escalonamento() {
   const navigate = useNavigate()
   const aluno = JSON.parse(localStorage.getItem("aluno") || "{}")
@@ -110,16 +103,14 @@ export default function Escalonamento() {
                       <table className="w-full text-left text-xs">
                         <thead>
                           <tr className="text-slate-400">
-                            <th className="w-10 px-4 py-2 font-medium">#</th>
-                            <th className="px-2 py-2 font-medium">Aluno</th>
-                            <th className="px-2 py-2 font-medium">Matrícula</th>
+                            <th className="w-10 px-4 py-2 font-medium">Posição</th>
                             <th className="px-2 py-2 font-medium">CR</th>
-                            <th className="px-4 py-2 text-right font-medium">Status</th>
+                            <th className="px-2 py-2 font-medium">Matrícula</th>
+                            <th className="px-2 py-2 font-medium">Nome</th>
                           </tr>
                         </thead>
                         <tbody>
                           {t.alunos.map(a => {
-                            const info = STATUS_INFO[a.status] || STATUS_INFO.pendente
                             const souEu = a.matricula === aluno.matricula
                             return (
                               <tr
@@ -127,16 +118,11 @@ export default function Escalonamento() {
                                 className={`border-t border-slate-100 ${souEu ? "bg-orange-50" : ""}`}
                               >
                                 <td className="px-4 py-2 text-slate-500">{a.posicao}</td>
+                                <td className="px-2 py-2 text-slate-500">{a.cr.toFixed(3)}</td>
+                                <td className="px-2 py-2 text-slate-500">{a.matricula}</td>
                                 <td className="px-2 py-2 font-medium text-slate-800">
                                   {a.nome}
                                   {souEu && <span className="ml-1.5 text-orange-600">(você)</span>}
-                                </td>
-                                <td className="px-2 py-2 text-slate-500">{a.matricula}</td>
-                                <td className="px-2 py-2 text-slate-500">{a.cr.toFixed(3)}</td>
-                                <td className="px-4 py-2 text-right">
-                                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${info.cor}`}>
-                                    {info.label}
-                                  </span>
                                 </td>
                               </tr>
                             )

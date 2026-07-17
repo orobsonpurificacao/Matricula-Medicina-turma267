@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { disciplinaService } from "../services/api"
+import { disciplinaService, inscricaoService } from "../services/api"
 import { horariosConflitam } from "../utils/grade"
 import GradeHoraria from "../components/GradeHoraria"
 
@@ -14,21 +14,42 @@ export default function Disciplinas() {
   const [loading, setLoading] = useState(true)
   const [abertas, setAbertas] = useState({})           // disciplina aberta/fechada
   const [semestresAbertos, setSemestresAbertos] = useState({})
-  const [escolhas, setEscolhas] = useState({})          // { discId: turmaId }
+  // escolhas: { [discId]: { pratica: turmaId|null, teorica: turmaId|null } }
+  const [escolhas, setEscolhas] = useState({})
   const navigate = useNavigate()
   const aluno = JSON.parse(localStorage.getItem("aluno") || "{}")
 
   useEffect(() => {
-    disciplinaService.listar().then(res => {
-      setDisciplinas(res.data)
+    Promise.all([
+      disciplinaService.listar(),
+      inscricaoService.minhas(aluno.matricula).catch(() => ({ data: [] })),
+    ]).then(([discRes, insRes]) => {
+      setDisciplinas(discRes.data)
+
+      // Pré-carrega o que o aluno já tinha escolhido antes (permite editar).
+      // Não conta inscrições em "fila" aqui — essas se resolvem só pela tela
+      // de Resultado (escolher alternativa), pra não duplicar inscrição.
+      const inicial = {}
+      for (const insc of insRes.data) {
+        if (insc.status === "fila") continue
+        const disc = discRes.data.find(d =>
+          d.turmas?.some(t => t.id === insc.turma_id)
+        )
+        if (!disc) continue
+        const turma = disc.turmas.find(t => t.id === insc.turma_id)
+        if (!turma) continue
+        const campo = turma.tipo === "P" ? "pratica" : "teorica"
+        inicial[disc.id] = { ...(inicial[disc.id] || {}), [campo]: turma.id }
+      }
+      setEscolhas(inicial)
       setLoading(false)
 
-      // Abre por padrão só o semestre mais baixo, o resto some até o aluno clicar
-      const semestres = [...new Set(res.data.map(d => d.semestre || 0))].sort((a, b) => a - b)
+      const semestres = [...new Set(discRes.data.map(d => d.semestre || 0))].sort((a, b) => a - b)
       if (semestres.length > 0) {
         setSemestresAbertos({ [semestres[0]]: true })
       }
     }).catch(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function toggleDisc(id) {
@@ -39,25 +60,57 @@ export default function Disciplinas() {
     setSemestresAbertos(s => ({ ...s, [sem]: !s[sem] }))
   }
 
-  function escolher(discId, turmaId) {
+  const praticasDaDisc = (d) => d.turmas?.filter(t => t.tipo === "P") || []
+  const teoricasDaDisc = (d) => d.turmas?.filter(t => t.tipo === "T") || []
+  const apenasTeoricas = (d) => praticasDaDisc(d).length === 0
+
+  function escolherPratica(disc, turmaId) {
     setEscolhas(e => {
-      if (e[discId] === turmaId) {
+      const atual = e[disc.id] || {}
+      if (atual.pratica === turmaId) {
+        // desmarca a prática — e a teórica vinculada junto, já que ela só
+        // fazia sentido por causa dessa prática
         const novo = { ...e }
-        delete novo[discId]
+        delete novo[disc.id]
         return novo
       }
-      return { ...e, [discId]: turmaId }
+      const novaEntrada = { ...atual, pratica: turmaId }
+      const teoricas = teoricasDaDisc(disc)
+      if (teoricas.length === 1) {
+        // única opção — vincula automático, sem o aluno precisar escolher
+        novaEntrada.teorica = teoricas[0].id
+      }
+      return { ...e, [disc.id]: novaEntrada }
+    })
+  }
+
+  function escolherTeorica(discId, turmaId) {
+    setEscolhas(e => {
+      const atual = e[discId] || {}
+      if (atual.teorica === turmaId) {
+        const novo = { ...e, [discId]: { ...atual, teorica: undefined } }
+        // se não sobrou nada selecionado nessa disciplina, remove a entrada
+        if (!novo[discId].pratica) delete novo[discId]
+        return novo
+      }
+      return { ...e, [discId]: { ...atual, teorica: turmaId } }
     })
   }
 
   function handleConfirmar() {
-    const selecionadas = Object.entries(escolhas).map(([discId, turmaId]) => ({
-      discId: parseInt(discId),
-      turmaId
-    }))
+    const selecionadas = []
+    for (const [discId, sel] of Object.entries(escolhas)) {
+      if (sel.pratica) selecionadas.push({ discId: parseInt(discId), turmaId: sel.pratica })
+      if (sel.teorica) selecionadas.push({ discId: parseInt(discId), turmaId: sel.teorica })
+    }
     localStorage.setItem("escolhas", JSON.stringify(selecionadas))
     localStorage.setItem("disciplinas_data", JSON.stringify(disciplinas))
     navigate("/confirmacao")
+  }
+
+  function sair() {
+    localStorage.removeItem("aluno")
+    navigate("/")
   }
 
   const total = Object.keys(escolhas).length
@@ -70,20 +123,25 @@ export default function Disciplinas() {
     return acc
   }, {})
 
-  const praticasDaDisc = (d) => d.turmas?.filter(t => t.tipo === "P") || []
-  const teoricasDaDisc = (d) => d.turmas?.filter(t => t.tipo === "T") || []
-  const apenasTeoricas = (d) => praticasDaDisc(d).length === 0
-
-  // Lista de tudo que está selecionado, com disciplina + turma resolvidas
+  // Lista achatada de tudo que está selecionado (prática E teórica juntas),
+  // usada pra grade e detecção de conflito — as duas competem por horário.
   const selecionadasList = useMemo(() => {
-    return Object.entries(escolhas).map(([discId, turmaId]) => {
+    const lista = []
+    for (const [discId, sel] of Object.entries(escolhas)) {
       const d = disciplinas.find(x => x.id === parseInt(discId))
-      const t = d?.turmas?.find(x => x.id === turmaId)
-      return d && t ? { disciplina: d, turma: t } : null
-    }).filter(Boolean)
+      if (!d) continue
+      if (sel.pratica) {
+        const t = d.turmas.find(x => x.id === sel.pratica)
+        if (t) lista.push({ disciplina: d, turma: t, papel: "pratica" })
+      }
+      if (sel.teorica) {
+        const t = d.turmas.find(x => x.id === sel.teorica)
+        if (t) lista.push({ disciplina: d, turma: t, papel: "teorica" })
+      }
+    }
+    return lista
   }, [escolhas, disciplinas])
 
-  // Detecção de conflito: compara toda escolha contra toda outra escolha
   const conflitosPorTurma = useMemo(() => {
     const mapa = {}
     for (let i = 0; i < selecionadasList.length; i++) {
@@ -102,7 +160,7 @@ export default function Disciplinas() {
 
   const itensGrade = selecionadasList.map((s, idx) => ({
     turma: s.turma,
-    disciplinaNome: s.disciplina.nome,
+    disciplinaNome: s.disciplina.nome + (s.papel === "teorica" ? " (T)" : ""),
     cor: CORES[idx % CORES.length],
     conflito: !!conflitosPorTurma[s.turma.id],
   }))
@@ -117,7 +175,7 @@ export default function Disciplinas() {
     <div className="min-h-screen bg-slate-100 text-slate-800">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 px-4 py-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-orange-200 bg-orange-50 text-xs font-semibold text-orange-700">
             {aluno.nome?.charAt(0) || "A"}
           </div>
@@ -126,20 +184,34 @@ export default function Disciplinas() {
             <p className="text-xs text-slate-500">CR {aluno.cr} · Mat. {aluno.matricula}</p>
           </div>
           <button
+            onClick={() => navigate("/home")}
+            className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            Início
+          </button>
+          <button
             onClick={() => navigate("/escalonamento")}
             className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
           >
             Ver escalonamento
           </button>
-          <button
-            onClick={() => navigate("/admin")}
-            className="shrink-0 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700 transition hover:bg-orange-100"
-          >
-            Painel do Administrador
-          </button>
+          {aluno.is_admin && (
+            <button
+              onClick={() => navigate("/admin")}
+              className="shrink-0 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700 transition hover:bg-orange-100"
+            >
+              Painel do Administrador
+            </button>
+          )}
           <div className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
             CR {aluno.cr}
           </div>
+          <button
+            onClick={sair}
+            className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-50"
+          >
+            Sair
+          </button>
         </div>
       </header>
 
@@ -197,17 +269,28 @@ export default function Disciplinas() {
                       {discs.map((d, idx) => {
                         const cor = CORES[idx % CORES.length]
                         const isOpen = abertas[d.id]
-                        const escolhida = escolhas[d.id]
-                        const turmasEscalonadas = apenasTeoricas(d) ? teoricasDaDisc(d) : praticasDaDisc(d)
-                        const turmaEscolhida = d.turmas?.find(t => t.id === escolhida)
-                        const conflitosDaEscolha = escolhida ? conflitosPorTurma[escolhida] : null
+                        const sel = escolhas[d.id] || {}
+                        const hibrida = !apenasTeoricas(d)
+                        const teoricasDisc = teoricasDaDisc(d)
+                        const praticasDisc = praticasDaDisc(d)
+                        const precisaEscolherTeorica = hibrida && teoricasDisc.length > 1
+                        const teoricaFaltando = precisaEscolherTeorica && sel.pratica && !sel.teorica
+
+                        const turmaPraticaEscolhida = sel.pratica ? d.turmas.find(t => t.id === sel.pratica) : null
+                        const turmaTeoricaEscolhida = sel.teorica ? d.turmas.find(t => t.id === sel.teorica) : null
+
+                        const conflitosDaEscolha = [
+                          ...(sel.pratica ? (conflitosPorTurma[sel.pratica] || []) : []),
+                          ...(sel.teorica ? (conflitosPorTurma[sel.teorica] || []) : []),
+                        ]
+                        const temConflitoNessaDisc = conflitosDaEscolha.length > 0
 
                         return (
                           <div key={d.id}
                             className={`overflow-hidden rounded-xl border shadow-sm transition-colors ${
-                              conflitosDaEscolha
+                              temConflitoNessaDisc
                                 ? "border-red-300 bg-red-50"
-                                : escolhida
+                                : (sel.pratica || sel.teorica)
                                   ? "border-orange-300 bg-orange-50"
                                   : "border-slate-200 bg-white"
                             }`}>
@@ -219,19 +302,33 @@ export default function Disciplinas() {
                                 <p className="truncate text-sm font-medium text-slate-800">{d.nome}</p>
                                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                                   <span className="text-xs text-slate-500">{d.codigo}</span>
-                                  {turmaEscolhida ? (
+                                  {turmaPraticaEscolhida ? (
                                     <span className="text-xs font-medium text-orange-700">
-                                      ✓ Turma {turmaEscolhida.numero} — {turmaEscolhida.horario.split("/")[0]}
+                                      ✓ Prática {turmaPraticaEscolhida.numero} — {turmaPraticaEscolhida.horario.split("/")[0]}
+                                    </span>
+                                  ) : !hibrida && turmaTeoricaEscolhida ? (
+                                    <span className="text-xs font-medium text-orange-700">
+                                      ✓ Turma {turmaTeoricaEscolhida.numero} — {turmaTeoricaEscolhida.horario.split("/")[0]}
                                     </span>
                                   ) : (
                                     <span className="text-xs text-slate-400">
-                                      {turmasEscalonadas.length} turma{turmasEscalonadas.length !== 1 ? "s" : ""}
-                                      {apenasTeoricas(d) ? " (teórica)" : " (prática)"}
+                                      {(hibrida ? praticasDisc : teoricasDisc).length} turma{(hibrida ? praticasDisc : teoricasDisc).length !== 1 ? "s" : ""}
+                                      {hibrida ? " (prática)" : " (teórica)"}
                                     </span>
                                   )}
-                                  {conflitosDaEscolha && (
+                                  {hibrida && turmaPraticaEscolhida && turmaTeoricaEscolhida && (
+                                    <span className="text-xs text-slate-500">
+                                      + Teórica {turmaTeoricaEscolhida.numero} — {turmaTeoricaEscolhida.horario.split("/")[0]}
+                                    </span>
+                                  )}
+                                  {teoricaFaltando && (
+                                    <span className="text-xs font-medium text-amber-600">
+                                      ⚠ falta escolher a teórica
+                                    </span>
+                                  )}
+                                  {temConflitoNessaDisc && (
                                     <span className="text-xs font-medium text-red-600">
-                                      ⚠ conflita com {conflitosDaEscolha.join(", ")}
+                                      ⚠ conflita com {[...new Set(conflitosDaEscolha)].join(", ")}
                                     </span>
                                   )}
                                 </div>
@@ -242,19 +339,17 @@ export default function Disciplinas() {
                             {/* Turmas */}
                             {isOpen && (
                               <div className="flex flex-col gap-1.5 border-t border-slate-100 p-2">
-                                {turmasEscalonadas.map(t => {
-                                  const selecionada = escolhida === t.id
+                                {(hibrida ? praticasDisc : teoricasDisc).map(t => {
+                                  const selecionada = hibrida ? sel.pratica === t.id : sel.teorica === t.id
                                   const conflitaSeSelecionada = selecionadasList.some(s =>
                                     s.disciplina.id !== d.id && horariosConflitam(s.turma.horario, t.horario)
                                   )
                                   return (
                                     <div key={t.id}
-                                      onClick={() => escolher(d.id, t.id)}
+                                      onClick={() => hibrida ? escolherPratica(d, t.id) : escolherTeorica(d.id, t.id)}
                                       className={`flex cursor-pointer items-center gap-2.5 rounded-lg border p-2.5 transition-colors ${
                                         selecionada
-                                          ? conflitosDaEscolha
-                                            ? "border-red-300 bg-red-50"
-                                            : "border-orange-300 bg-orange-50"
+                                          ? "border-orange-300 bg-orange-50"
                                           : "border-slate-200 bg-slate-50 hover:border-orange-300"
                                       }`}>
                                       <div className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border-2 ${
@@ -281,9 +376,41 @@ export default function Disciplinas() {
                                     </div>
                                   )
                                 })}
-                                {!apenasTeoricas(d) && teoricasDaDisc(d).length > 0 && (
+
+                                {/* Escolha da teórica, só aparece quando a disciplina tem mais de 1 opção */}
+                                {precisaEscolherTeorica && sel.pratica && (
+                                  <div className="mt-1 flex flex-col gap-1.5 border-t border-slate-100 pt-2">
+                                    <p className="px-1 text-xs font-medium text-slate-500">Escolha a turma teórica:</p>
+                                    {teoricasDisc.map(t => {
+                                      const selecionada = sel.teorica === t.id
+                                      return (
+                                        <div key={t.id}
+                                          onClick={() => escolherTeorica(d.id, t.id)}
+                                          className={`flex cursor-pointer items-center gap-2.5 rounded-lg border p-2.5 transition-colors ${
+                                            selecionada
+                                              ? "border-orange-300 bg-orange-50"
+                                              : "border-slate-200 bg-slate-50 hover:border-orange-300"
+                                          }`}>
+                                          <div className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border-2 ${
+                                            selecionada ? "border-orange-500 bg-orange-500" : "border-slate-300"
+                                          }`}>
+                                            {selecionada && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-medium text-slate-700">
+                                              Turma {t.numero} — {t.horario}
+                                            </p>
+                                            <p className="truncate text-xs text-slate-500">{t.professor}</p>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+
+                                {hibrida && teoricasDisc.length === 1 && (
                                   <p className="px-1 pt-1 text-xs text-slate-400">
-                                    ℹ Teórica alocada automaticamente com a prática
+                                    ℹ Teórica (Turma {teoricasDisc[0].numero} — {teoricasDisc[0].horario}) incluída automaticamente com a prática
                                   </p>
                                 )}
                               </div>

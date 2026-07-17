@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { alunoService } from '../services/api'
+import { alunoService, inscricaoService } from '../services/api'
 import mascoteTurma267 from '../assets/mascote-turma-267.jpeg'
 
 const GITHUB_URL = 'https://github.com/orobsonpurificacao'
@@ -23,7 +23,15 @@ export default function Login() {
       const res = await alunoService.login(matricula, senha)
 
       localStorage.setItem('aluno', JSON.stringify(res.data))
-      navigate('/disciplinas')
+
+      // 2º acesso (já tem alguma inscrição feita) cai na Home; quem nunca
+      // escolheu nada ainda vai direto pra tela de escolha de disciplinas.
+      try {
+        const inscricoes = await inscricaoService.minhas(res.data.matricula)
+        navigate(inscricoes.data.length > 0 ? '/home' : '/disciplinas')
+      } catch {
+        navigate('/disciplinas')
+      }
     } catch (err) {
       if (err.response?.status === 404) {
         navigate('/cadastro')

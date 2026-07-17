@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
 import Cadastro from './pages/Cadastro'
 import Disciplinas from './pages/Disciplinas'
+import Home from './pages/Home'
 import Confirmacao from './pages/Confirmacao'
 import Resultado from './pages/Resultado'
 import Escalonamento from './pages/Escalonamento'
@@ -27,6 +28,9 @@ export default function App() {
         <Route path="/cadastro" element={<Cadastro />} />
         <Route path="/disciplinas" element={
           <RotaProtegida><Disciplinas /></RotaProtegida>
+        } />
+        <Route path="/home" element={
+          <RotaProtegida><Home /></RotaProtegida>
         } />
         <Route path="/confirmacao" element={
           <RotaProtegida><Confirmacao /></RotaProtegida>

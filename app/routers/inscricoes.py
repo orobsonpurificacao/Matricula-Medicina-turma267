@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
@@ -26,45 +27,67 @@ def inscrever(
     inscricoes: list[InscricaoCreate],
     db: Session = Depends(get_db),
 ):
+    """
+    Upsert de inscrições: um aluno pode ter no máximo 1 inscrição de tipo
+    prática e 1 de tipo teórica por disciplina (as duas juntas, quando a
+    disciplina tiver os dois tipos). Reenviar uma escolha diferente pra
+    uma disciplina já inscrita SUBSTITUI a anterior — inclusive se ela já
+    estava "alocado" — desde que o período de inscrição ainda esteja
+    aberto (é essa checagem que impede edição depois que o período fecha).
+    """
     aluno = _get_aluno(matricula, db)
     _checar_periodo_aberto(db)
 
-    criadas = []
+    resultado = []
     for item in inscricoes:
         turma = db.query(Turma).filter(Turma.id == item.turma_id).first()
         if not turma:
             raise HTTPException(404, f"Turma {item.turma_id} não encontrada")
 
-        # Evita duplicata na mesma disciplina
-        ja_inscrito = (
+        existente = (
             db.query(Inscricao)
             .join(Turma)
             .filter(
                 Inscricao.aluno_id == aluno.id,
                 Turma.disciplina_id == turma.disciplina_id,
+                Turma.tipo == turma.tipo,
                 Inscricao.status != StatusInscricao.fila,
             )
             .first()
         )
-        if ja_inscrito:
-            raise HTTPException(
-                400,
-                f"Já existe inscrição para a disciplina da turma {item.turma_id}",
-            )
 
-        inscricao = Inscricao(
-            aluno_id=aluno.id,
-            turma_id=item.turma_id,
-            prioridade=item.prioridade,
-            status=StatusInscricao.pendente,
-        )
-        db.add(inscricao)
-        criadas.append(inscricao)
+        if existente and existente.turma_id == item.turma_id:
+            # Já inscrito exatamente nessa turma — não faz nada, evita duplicar.
+            resultado.append(existente)
+            continue
+
+        if existente:
+            # Troca de turma: libera a vaga da turma antiga se ela já
+            # tinha sido alocada, e joga essa inscrição de volta pra
+            # "pendente" pra entrar na próxima rodada de escalonamento.
+            turma_antiga = db.query(Turma).filter(Turma.id == existente.turma_id).first()
+            if turma_antiga and existente.status == StatusInscricao.alocado:
+                turma_antiga.vagas_ocupadas = max(0, turma_antiga.vagas_ocupadas - 1)
+
+            existente.turma_id = item.turma_id
+            existente.prioridade = item.prioridade
+            existente.status = StatusInscricao.pendente
+            existente.criado_em = datetime.utcnow()
+            resultado.append(existente)
+        else:
+            nova = Inscricao(
+                aluno_id=aluno.id,
+                turma_id=item.turma_id,
+                prioridade=item.prioridade,
+                status=StatusInscricao.pendente,
+            )
+            db.add(nova)
+            resultado.append(nova)
 
     db.commit()
-    for i in criadas:
+    for i in resultado:
         db.refresh(i)
-    return criadas
+    return resultado
 
 
 @router.get("/{matricula}", response_model=list[InscricaoOut])
