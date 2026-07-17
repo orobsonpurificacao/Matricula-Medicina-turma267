@@ -16,13 +16,14 @@ export default function Confirmacao() {
   const [erro, setErro] = useState("")
 
   // Dados salvos pela página de Disciplinas ao clicar em "Confirmar inscrição"
-  const { escolhas, disciplinas } = useMemo(() => {
+  const { escolhas, disciplinas, cancelamentos } = useMemo(() => {
     try {
       const escolhasSalvas = JSON.parse(localStorage.getItem("escolhas") || "[]")
       const disciplinasSalvas = JSON.parse(localStorage.getItem("disciplinas_data") || "[]")
-      return { escolhas: escolhasSalvas, disciplinas: disciplinasSalvas }
+      const cancelamentosSalvos = JSON.parse(localStorage.getItem("cancelamentos") || "[]")
+      return { escolhas: escolhasSalvas, disciplinas: disciplinasSalvas, cancelamentos: cancelamentosSalvos }
     } catch {
-      return { escolhas: [], disciplinas: [] }
+      return { escolhas: [], disciplinas: [], cancelamentos: [] }
     }
   }, [])
 
@@ -61,10 +62,22 @@ export default function Confirmacao() {
     setErro("")
     setEnviando(true)
     try {
-      const payload = selecionadasList.map(s => ({ turma_id: s.turma.id, prioridade: 1 }))
-      await inscricaoService.inscrever(aluno.matricula, payload)
+      // Primeiro cancela de verdade quem foi desmarcado — sem isso, a
+      // inscrição antiga ficava fantasma no banco mesmo sumindo da tela.
+      for (const inscricaoId of cancelamentos) {
+        await inscricaoService.cancelar(aluno.matricula, inscricaoId).catch(() => {
+          // se uma já não existir mais por algum motivo, não trava o resto
+        })
+      }
+
+      if (selecionadasList.length > 0) {
+        const payload = selecionadasList.map(s => ({ turma_id: s.turma.id, prioridade: 1 }))
+        await inscricaoService.inscrever(aluno.matricula, payload)
+      }
+
       localStorage.removeItem("escolhas")
       localStorage.removeItem("disciplinas_data")
+      localStorage.removeItem("cancelamentos")
       navigate("/resultado")
     } catch (err) {
       setErro(
@@ -76,7 +89,7 @@ export default function Confirmacao() {
     }
   }
 
-  if (selecionadasList.length === 0) {
+  if (selecionadasList.length === 0 && cancelamentos.length === 0) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-100 px-4 text-center">
         <p className="text-sm text-slate-600">Nenhuma disciplina selecionada ainda.</p>

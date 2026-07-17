@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { adminService, disciplinaService, turmaService, alunoService } from '../services/api'
+import { adminService, disciplinaService, turmaService, alunoService, escalonamentoService } from '../services/api'
 
 function Stat({ label, value }) {
   return (
@@ -58,8 +58,11 @@ export default function Admin() {
   // Gerenciamento de prioridade (PCD e outros)
   const [prioritarios, setPrioritarios] = useState([])
   const [mostrarPrioridade, setMostrarPrioridade] = useState(false)
-  const [matriculaPrioridade, setMatriculaPrioridade] = useState('')
-  const [motivoPrioridade, setMotivoPrioridade] = useState('')
+  const [escalonamentoCompleto, setEscalonamentoCompleto] = useState([])
+  const [todosAlunos, setTodosAlunos] = useState([])
+  const [filtroPrioridade, setFiltroPrioridade] = useState('')
+  const [motivoPorAluno, setMotivoPorAluno] = useState({})
+  const [ordemPorAluno, setOrdemPorAluno] = useState({})
   const [erroPrioridade, setErroPrioridade] = useState('')
   const [matriculaPromover, setMatriculaPromover] = useState('')
   const [erroPromover, setErroPromover] = useState('')
@@ -68,12 +71,14 @@ export default function Admin() {
     setLoading(true)
     setErro('')
     try {
-      const [statsRes, pendentesRes, disciplinasRes, adminsRes, prioritariosRes] = await Promise.all([
+      const [statsRes, pendentesRes, disciplinasRes, adminsRes, prioritariosRes, escalonamentoRes, todosRes] = await Promise.all([
         adminService.estatisticas(),
         adminService.pendentes(),
         disciplinaService.listar(),
         adminService.administradores(),
         adminService.prioritarios(),
+        escalonamentoService.listar(),
+        adminService.todos(),
       ])
       setStats(statsRes.data)
       setPeriodoAberto(statsRes.data.periodo_aberto)
@@ -81,6 +86,8 @@ export default function Admin() {
       setDisciplinas(disciplinasRes.data)
       setAdmins(adminsRes.data)
       setPrioritarios(prioritariosRes.data)
+      setEscalonamentoCompleto(escalonamentoRes.data)
+      setTodosAlunos(todosRes.data)
     } catch (err) {
       if (err.response?.status === 403) {
         setErro('Acesso restrito ao administrador.')
@@ -236,23 +243,34 @@ export default function Admin() {
     }
   }
 
-  async function darPrioridadePorMatricula(e) {
-    e.preventDefault()
+  async function darPrioridade(alunoId, nome) {
     setErroPrioridade('')
-    setAcao('prioridade')
+    setAcao(`prioridade-${alunoId}`)
     try {
-      const busca = await alunoService.buscar(matriculaPrioridade.trim())
-      await adminService.definirPrioridade(busca.data.id, true, motivoPrioridade.trim() || null)
-      setMatriculaPrioridade('')
-      setMotivoPrioridade('')
-      setMsg(`${busca.data.nome} agora tem prioridade no escalonamento.`)
+      const motivo = (motivoPorAluno[alunoId] || '').trim() || null
+      const ordemTexto = (ordemPorAluno[alunoId] || '').trim()
+      const ordem = ordemTexto ? parseInt(ordemTexto, 10) : null
+      await adminService.definirPrioridade(alunoId, true, motivo, ordem)
+      setMsg(`${nome} agora tem prioridade no escalonamento.`)
       await carregarTudo()
-    } catch (err) {
-      if (err.response?.status === 404) {
-        setErroPrioridade('Matrícula não encontrada. A pessoa precisa se cadastrar primeiro.')
-      } else {
-        setErroPrioridade('Não foi possível marcar prioridade.')
-      }
+    } catch {
+      setErroPrioridade('Não foi possível marcar prioridade.')
+    } finally {
+      setAcao('')
+    }
+  }
+
+  async function atualizarOrdem(aluno) {
+    setAcao(`prioridade-${aluno.id}`)
+    setErroPrioridade('')
+    try {
+      const ordemTexto = (ordemPorAluno[aluno.id] || '').trim()
+      const ordem = ordemTexto ? parseInt(ordemTexto, 10) : aluno.ordem_prioridade
+      await adminService.definirPrioridade(aluno.id, true, aluno.motivo_prioridade, ordem)
+      setMsg(`Posição de ${aluno.nome} atualizada.`)
+      await carregarTudo()
+    } catch {
+      setErroPrioridade('Não foi possível atualizar a posição.')
     } finally {
       setAcao('')
     }
@@ -268,21 +286,6 @@ export default function Admin() {
       await carregarTudo()
     } catch {
       setErro('Não foi possível remover a prioridade.')
-    } finally {
-      setAcao('')
-    }
-  }
-
-  async function rebaixar(alunoId) {
-    if (!confirm('Remover acesso admin desta pessoa?')) return
-    setAcao(`rebaixar-${alunoId}`)
-    setErro('')
-    try {
-      await adminService.rebaixar(alunoId)
-      setMsg('Acesso admin removido.')
-      await carregarTudo()
-    } catch (err) {
-      setErro(err.response?.data?.detail || 'Não foi possível rebaixar.')
     } finally {
       setAcao('')
     }
@@ -382,14 +385,6 @@ export default function Admin() {
                         </span>
                       )}
                     </span>
-                    <button
-                      onClick={() => rebaixar(a.id)}
-                      disabled={acao === `rebaixar-${a.id}` || admins.length <= 1}
-                      title={admins.length <= 1 ? 'Não é possível remover o último admin' : ''}
-                      className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Remover acesso
-                    </button>
                   </div>
                 ))}
               </div>
@@ -423,62 +418,148 @@ export default function Admin() {
             <span>{mostrarPrioridade ? '−' : '+'}</span>
           </button>
 
-          {mostrarPrioridade && (
-            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-xs leading-5 text-slate-500">
-                Quem tem prioridade (ex: PCD) sobe pro topo do escalonamento e da alocação de
-                vagas, mesmo com CR mais baixo. O motivo fica visível só aqui, pra você — não
-                aparece pros outros alunos na lista pública.
-              </p>
+          {mostrarPrioridade && (() => {
+            const escalonamentoComId = escalonamentoCompleto.map(item => {
+              const aluno = todosAlunos.find(a => a.matricula === item.matricula)
+              return { ...item, id: aluno?.id, prioridade: aluno?.prioridade || false }
+            })
+            const filtroLower = filtroPrioridade.trim().toLowerCase()
+            const listaFiltrada = filtroLower
+              ? escalonamentoComId.filter(a =>
+                  a.nome.toLowerCase().includes(filtroLower) || a.matricula.includes(filtroLower)
+                )
+              : escalonamentoComId
 
-              {prioritarios.length === 0 ? (
-                <p className="py-2 text-xs text-slate-400">Ninguém marcado com prioridade ainda.</p>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {prioritarios.map(a => (
-                    <div key={a.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <div className="min-w-0">
-                        <p className="text-sm text-slate-800">
-                          {a.nome} <span className="text-slate-500">({a.matricula})</span>
-                        </p>
-                        {a.motivo_prioridade && (
-                          <p className="text-xs text-slate-500">{a.motivo_prioridade}</p>
-                        )}
+            return (
+              <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs leading-5 text-slate-500">
+                  Quem tem prioridade (ex: PCD) sobe pro topo do escalonamento e da alocação de
+                  vagas, mesmo com CR mais baixo. O motivo fica visível só aqui, pra você — não
+                  aparece pros outros alunos na lista pública.
+                </p>
+
+                {prioritarios.length > 0 && (
+                  <div className="flex flex-col gap-2 border-b border-slate-100 pb-3">
+                    <p className="text-xs font-medium text-slate-500">Com prioridade agora (ordem manual):</p>
+                    {[...prioritarios].sort((a, b) => (a.ordem_prioridade ?? 999) - (b.ordem_prioridade ?? 999)).map(a => (
+                      <div key={a.id} className="flex items-center justify-between gap-3 rounded-xl border border-orange-200 bg-orange-50 p-3">
+                        <div className="min-w-0">
+                          <p className="text-sm text-slate-800">
+                            {a.nome} <span className="text-slate-500">({a.matricula})</span>
+                          </p>
+                          {a.motivo_prioridade && (
+                            <p className="text-xs text-slate-500">{a.motivo_prioridade}</p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder={String(a.ordem_prioridade ?? '')}
+                            value={ordemPorAluno[a.id] ?? ''}
+                            onChange={e => setOrdemPorAluno(o => ({ ...o, [a.id]: e.target.value }))}
+                            className="w-14 rounded-lg border border-orange-300 bg-white px-2 py-1 text-xs text-slate-800 outline-none focus:border-orange-500"
+                          />
+                          <button
+                            onClick={() => atualizarOrdem(a)}
+                            disabled={acao === `prioridade-${a.id}`}
+                            className="rounded-lg border border-orange-300 bg-white px-2 py-1 text-xs font-medium text-orange-700 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Salvar
+                          </button>
+                          <button
+                            onClick={() => removerPrioridade(a.id)}
+                            disabled={acao === `prioridade-${a.id}`}
+                            className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Remover
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => removerPrioridade(a.id)}
-                        disabled={acao === `prioridade-${a.id}`}
-                        className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        Remover
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
 
-              <form onSubmit={darPrioridadePorMatricula} className="flex flex-col gap-2 border-t border-slate-100 pt-3">
-                <p className="text-xs text-slate-500">Dar prioridade (a pessoa precisa já estar cadastrada)</p>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Matrícula"
-                    value={matriculaPrioridade}
-                    onChange={e => setMatriculaPrioridade(e.target.value)}
-                    required
-                  />
-                  <BotaoPrimario type="submit" disabled={acao === 'prioridade'} className="whitespace-nowrap">
-                    {acao === 'prioridade' ? '...' : 'Dar prioridade'}
-                  </BotaoPrimario>
-                </div>
-                <Input
-                  placeholder="Motivo (ex: PCD — laudo anexado), opcional mas recomendado"
-                  value={motivoPrioridade}
-                  onChange={e => setMotivoPrioridade(e.target.value)}
+                <input
+                  value={filtroPrioridade}
+                  onChange={e => setFiltroPrioridade(e.target.value)}
+                  placeholder="Buscar por nome ou matrícula na lista de escalonamento..."
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-100"
                 />
+
                 {erroPrioridade && <p className="text-xs text-red-600">{erroPrioridade}</p>}
-              </form>
-            </div>
-          )}
+
+                <div className="max-h-96 overflow-y-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-xs">
+                    <thead className="sticky top-0 bg-slate-50">
+                      <tr className="text-slate-400">
+                        <th className="w-12 px-3 py-2 font-medium">Pos.</th>
+                        <th className="px-2 py-2 font-medium">CR</th>
+                        <th className="px-2 py-2 font-medium">Matrícula</th>
+                        <th className="px-2 py-2 font-medium">Nome</th>
+                        <th className="px-3 py-2 font-medium">Motivo</th>
+                        <th className="px-3 py-2 font-medium">Ordem</th>
+                        <th className="px-3 py-2 text-right font-medium">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {listaFiltrada.map(a => (
+                        <tr key={a.matricula} className={`border-t border-slate-100 ${a.prioridade ? 'bg-orange-50' : ''}`}>
+                          <td className="px-3 py-2 text-slate-500">{a.posicao}</td>
+                          <td className="px-2 py-2 text-slate-500">{a.cr.toFixed(3)}</td>
+                          <td className="px-2 py-2 text-slate-500">{a.matricula}</td>
+                          <td className="px-2 py-2 font-medium text-slate-800">{a.nome}</td>
+                          <td className="px-3 py-2">
+                            {!a.prioridade && a.id && (
+                              <input
+                                value={motivoPorAluno[a.id] || ''}
+                                onChange={e => setMotivoPorAluno(m => ({ ...m, [a.id]: e.target.value }))}
+                                placeholder="Ex: PCD"
+                                className="w-24 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus:border-orange-400"
+                              />
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {!a.prioridade && a.id && (
+                              <input
+                                type="number"
+                                min="1"
+                                value={ordemPorAluno[a.id] || ''}
+                                onChange={e => setOrdemPorAluno(o => ({ ...o, [a.id]: e.target.value }))}
+                                placeholder="Ordem"
+                                className="w-16 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus:border-orange-400"
+                              />
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {!a.id ? (
+                              <span className="text-slate-300">—</span>
+                            ) : a.prioridade ? (
+                              <button
+                                onClick={() => removerPrioridade(a.id)}
+                                disabled={acao === `prioridade-${a.id}`}
+                                className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Remover
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => darPrioridade(a.id, a.nome)}
+                                disabled={acao === `prioridade-${a.id}`}
+                                className="rounded-lg border border-orange-300 bg-white px-2.5 py-1 text-xs font-medium text-orange-700 transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Dar prioridade
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )
+          })()}
         </div>
 
         {/* Estatísticas */}

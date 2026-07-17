@@ -21,11 +21,13 @@ class AlunoAdmin(AlunoOut):
     comprovante_path: Optional[str] = None
     motivo_recusa: Optional[str] = None
     prioridade: bool = False
+    ordem_prioridade: Optional[int] = None
     motivo_prioridade: Optional[str] = None
 
 
 class PrioridadeUpdate(BaseModel):
     ativar: bool
+    ordem: Optional[int] = None
     motivo: Optional[str] = None
 
 

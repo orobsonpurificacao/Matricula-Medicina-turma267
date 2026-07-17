@@ -16,6 +16,9 @@ export default function Disciplinas() {
   const [semestresAbertos, setSemestresAbertos] = useState({})
   // escolhas: { [discId]: { pratica: turmaId|null, teorica: turmaId|null } }
   const [escolhas, setEscolhas] = useState({})
+  // guarda as inscrições que já existiam ao abrir a tela, pra saber depois
+  // o que o aluno desmarcou e precisa ser cancelado de verdade no backend
+  const [inscricoesOriginais, setInscricoesOriginais] = useState([])
   const navigate = useNavigate()
   const aluno = JSON.parse(localStorage.getItem("aluno") || "{}")
 
@@ -42,6 +45,7 @@ export default function Disciplinas() {
         inicial[disc.id] = { ...(inicial[disc.id] || {}), [campo]: turma.id }
       }
       setEscolhas(inicial)
+      setInscricoesOriginais(insRes.data.filter(i => i.status !== "fila"))
       setLoading(false)
 
       const semestres = [...new Set(discRes.data.map(d => d.semestre || 0))].sort((a, b) => a - b)
@@ -99,11 +103,27 @@ export default function Disciplinas() {
 
   function handleConfirmar() {
     const selecionadas = []
+    const turmaIdsSelecionados = new Set()
     for (const [discId, sel] of Object.entries(escolhas)) {
-      if (sel.pratica) selecionadas.push({ discId: parseInt(discId), turmaId: sel.pratica })
-      if (sel.teorica) selecionadas.push({ discId: parseInt(discId), turmaId: sel.teorica })
+      if (sel.pratica) {
+        selecionadas.push({ discId: parseInt(discId), turmaId: sel.pratica })
+        turmaIdsSelecionados.add(sel.pratica)
+      }
+      if (sel.teorica) {
+        selecionadas.push({ discId: parseInt(discId), turmaId: sel.teorica })
+        turmaIdsSelecionados.add(sel.teorica)
+      }
     }
+
+    // Qualquer inscrição que já existia e não está mais entre as turmas
+    // selecionadas agora foi desmarcada pelo aluno — precisa ser cancelada
+    // de verdade no backend, não só sumir da tela.
+    const cancelamentos = inscricoesOriginais
+      .filter(i => !turmaIdsSelecionados.has(i.turma_id))
+      .map(i => i.id)
+
     localStorage.setItem("escolhas", JSON.stringify(selecionadas))
+    localStorage.setItem("cancelamentos", JSON.stringify(cancelamentos))
     localStorage.setItem("disciplinas_data", JSON.stringify(disciplinas))
     navigate("/confirmacao")
   }

@@ -90,6 +90,39 @@ def inscrever(
     return resultado
 
 
+@router.delete("/{matricula}/{inscricao_id}", status_code=204)
+def cancelar_inscricao(
+    matricula: str,
+    inscricao_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Cancela de verdade uma inscrição — usado quando o aluno desmarca uma
+    disciplina que já tinha escolhido antes. Sem isso, desmarcar na tela
+    não tinha efeito nenhum no banco (a inscrição antiga ficava lá pra
+    sempre). Só funciona com o período de inscrição aberto, mesma regra
+    de qualquer outra edição.
+    """
+    aluno = _get_aluno(matricula, db)
+    _checar_periodo_aberto(db)
+
+    inscricao = (
+        db.query(Inscricao)
+        .filter(Inscricao.id == inscricao_id, Inscricao.aluno_id == aluno.id)
+        .first()
+    )
+    if not inscricao:
+        raise HTTPException(404, "Inscrição não encontrada")
+
+    if inscricao.status == StatusInscricao.alocado:
+        turma = db.query(Turma).filter(Turma.id == inscricao.turma_id).first()
+        if turma:
+            turma.vagas_ocupadas = max(0, turma.vagas_ocupadas - 1)
+
+    db.delete(inscricao)
+    db.commit()
+
+
 @router.get("/{matricula}", response_model=list[InscricaoOut])
 def minhas_inscricoes(matricula: str, db: Session = Depends(get_db)):
     aluno = db.query(Aluno).filter(Aluno.matricula == matricula).first()

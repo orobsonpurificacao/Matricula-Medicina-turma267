@@ -142,17 +142,38 @@ def definir_prioridade(
     admin: Aluno = Depends(get_admin_atual),
 ):
     """
-    Marca ou desmarca prioridade pra um aluno (ex: PCD). Quem tem
-    prioridade sobe pro topo da ordem de escalonamento — e como a
-    alocação de vagas segue exatamente essa mesma ordem, isso também
-    fura fila de verdade na hora de decidir quem fica com a vaga.
+    Marca ou desmarca prioridade pra um aluno (ex: PCD), com uma ORDEM
+    explícita entre os prioritários (1º, 2º, 3º...) — não é CR quem decide
+    a ordem entre eles, é o número que o admin define aqui. Quem tem
+    prioridade sobe pro topo do escalonamento — e como a alocação de vagas
+    segue exatamente essa mesma ordem, isso também fura fila de verdade
+    na hora de decidir quem fica com a vaga.
     """
     aluno = db.query(Aluno).filter(Aluno.id == aluno_id).first()
     if not aluno:
         raise HTTPException(404, "Aluno não encontrado")
 
-    aluno.prioridade = payload.ativar
-    aluno.motivo_prioridade = payload.motivo if payload.ativar else None
+    if payload.ativar:
+        if payload.ordem is not None:
+            ordem = payload.ordem
+        else:
+            # Sem número informado: joga pro final da fila de prioritários
+            maior_ordem_atual = (
+                db.query(Aluno.ordem_prioridade)
+                .filter(Aluno.prioridade == True)
+                .order_by(Aluno.ordem_prioridade.desc())
+                .first()
+            )
+            ordem = (maior_ordem_atual[0] + 1) if maior_ordem_atual and maior_ordem_atual[0] else 1
+
+        aluno.prioridade = True
+        aluno.ordem_prioridade = ordem
+        aluno.motivo_prioridade = payload.motivo
+    else:
+        aluno.prioridade = False
+        aluno.ordem_prioridade = None
+        aluno.motivo_prioridade = None
+
     db.commit()
     db.refresh(aluno)
     return aluno

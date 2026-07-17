@@ -41,6 +41,7 @@ def _migrar_colunas_novas():
     colunas_novas = {
         "prioridade": "BOOLEAN NOT NULL DEFAULT 0",
         "motivo_prioridade": "VARCHAR(255)",
+        "ordem_prioridade": "INTEGER",
     }
 
     with engine.begin() as conn:

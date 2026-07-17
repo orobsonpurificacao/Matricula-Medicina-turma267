@@ -44,6 +44,7 @@ export const turmaService = {
 export const inscricaoService = {
   inscrever: (matricula, inscricoes) => api.post(`/inscricoes/${matricula}`, inscricoes),
   minhas: (matricula) => api.get(`/inscricoes/${matricula}`),
+  cancelar: (matricula, inscricaoId) => api.delete(`/inscricoes/${matricula}/${inscricaoId}`),
   escolherAlternativa: (data) => api.post("/inscricoes/alternativa/escolher", data),
 }
 
@@ -65,7 +66,7 @@ export const adminService = {
   promover: (id) => api.post(`/admin/promover/${id}`),
   rebaixar: (id) => api.post(`/admin/rebaixar/${id}`),
   prioritarios: () => api.get("/admin/prioritarios"),
-  definirPrioridade: (id, ativar, motivo) => api.post(`/admin/prioridade/${id}`, { ativar, motivo }),
+  definirPrioridade: (id, ativar, motivo, ordem) => api.post(`/admin/prioridade/${id}`, { ativar, motivo, ordem }),
 }
 
 export default api
