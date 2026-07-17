@@ -64,6 +64,8 @@ export const adminService = {
   administradores: () => api.get("/admin/administradores"),
   promover: (id) => api.post(`/admin/promover/${id}`),
   rebaixar: (id) => api.post(`/admin/rebaixar/${id}`),
+  prioritarios: () => api.get("/admin/prioritarios"),
+  definirPrioridade: (id, ativar, motivo) => api.post(`/admin/prioridade/${id}`, { ativar, motivo }),
 }
 
 export default api

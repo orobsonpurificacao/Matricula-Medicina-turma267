@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.alocacao import rodar_alocacao
 from app.models import Aluno, Inscricao, StatusInscricao, PeriodoInscricao
-from app.schemas import ResultadoAlocacao, PeriodoOut, EstatisticasOut, AlunoOut
+from app.schemas import ResultadoAlocacao, PeriodoOut, EstatisticasOut, AlunoOut, AlunoAdmin, PrioridadeUpdate
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -122,6 +122,37 @@ def rebaixar_admin(
         )
 
     aluno.is_admin = False
+    db.commit()
+    db.refresh(aluno)
+    return aluno
+
+
+@router.get("/prioritarios", response_model=list[AlunoAdmin])
+def listar_prioritarios(db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
+    """Alunos marcados com prioridade (ex: PCD) — só o admin vê essa lista.
+    Não fica visível publicamente na lista de escalonamento."""
+    return db.query(Aluno).filter(Aluno.prioridade == True).all()
+
+
+@router.post("/prioridade/{aluno_id}", response_model=AlunoAdmin)
+def definir_prioridade(
+    aluno_id: int,
+    payload: PrioridadeUpdate,
+    db: Session = Depends(get_db),
+    admin: Aluno = Depends(get_admin_atual),
+):
+    """
+    Marca ou desmarca prioridade pra um aluno (ex: PCD). Quem tem
+    prioridade sobe pro topo da ordem de escalonamento — e como a
+    alocação de vagas segue exatamente essa mesma ordem, isso também
+    fura fila de verdade na hora de decidir quem fica com a vaga.
+    """
+    aluno = db.query(Aluno).filter(Aluno.id == aluno_id).first()
+    if not aluno:
+        raise HTTPException(404, "Aluno não encontrado")
+
+    aluno.prioridade = payload.ativar
+    aluno.motivo_prioridade = payload.motivo if payload.ativar else None
     db.commit()
     db.refresh(aluno)
     return aluno

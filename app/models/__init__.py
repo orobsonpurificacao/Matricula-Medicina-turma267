@@ -29,6 +29,8 @@ class Aluno(Base):
     recusado = Column(Boolean, default=False)
     motivo_recusa = Column(String(255), nullable=True)
     is_admin = Column(Boolean, default=False, nullable=False)
+    prioridade = Column(Boolean, default=False, nullable=False)
+    motivo_prioridade = Column(String(255), nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
     inscricoes = relationship("Inscricao", back_populates="aluno")
 

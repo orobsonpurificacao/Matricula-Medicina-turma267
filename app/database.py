@@ -22,8 +22,31 @@ def get_db():
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    _migrar_colunas_novas()
     _seed_disciplinas()
     _seed_periodo()
+
+
+def _migrar_colunas_novas():
+    """
+    create_all() só cria TABELAS novas — se uma tabela já existe (banco de
+    produção com dados reais) e o model ganhou uma coluna nova, ela não
+    aparece sozinha. Essa função confere e adiciona só o que estiver
+    faltando, sem tocar em nenhuma linha existente.
+    """
+    from sqlalchemy import inspect, text
+    inspetor = inspect(engine)
+    colunas_existentes = {c["name"] for c in inspetor.get_columns("alunos")}
+
+    colunas_novas = {
+        "prioridade": "BOOLEAN NOT NULL DEFAULT 0",
+        "motivo_prioridade": "VARCHAR(255)",
+    }
+
+    with engine.begin() as conn:
+        for nome, definicao in colunas_novas.items():
+            if nome not in colunas_existentes:
+                conn.execute(text(f"ALTER TABLE alunos ADD COLUMN {nome} {definicao}"))
 
 
 def _seed_periodo():

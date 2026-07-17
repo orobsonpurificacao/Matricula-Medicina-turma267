@@ -20,6 +20,13 @@ class AlunoOut(BaseModel):
 class AlunoAdmin(AlunoOut):
     comprovante_path: Optional[str] = None
     motivo_recusa: Optional[str] = None
+    prioridade: bool = False
+    motivo_prioridade: Optional[str] = None
+
+
+class PrioridadeUpdate(BaseModel):
+    ativar: bool
+    motivo: Optional[str] = None
 
 
 class RejeitarComprovante(BaseModel):

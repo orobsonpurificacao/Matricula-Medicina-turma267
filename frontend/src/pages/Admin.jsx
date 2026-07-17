@@ -54,6 +54,13 @@ export default function Admin() {
   // Gerenciamento de admins
   const [admins, setAdmins] = useState([])
   const [mostrarAdmins, setMostrarAdmins] = useState(false)
+
+  // Gerenciamento de prioridade (PCD e outros)
+  const [prioritarios, setPrioritarios] = useState([])
+  const [mostrarPrioridade, setMostrarPrioridade] = useState(false)
+  const [matriculaPrioridade, setMatriculaPrioridade] = useState('')
+  const [motivoPrioridade, setMotivoPrioridade] = useState('')
+  const [erroPrioridade, setErroPrioridade] = useState('')
   const [matriculaPromover, setMatriculaPromover] = useState('')
   const [erroPromover, setErroPromover] = useState('')
 
@@ -61,17 +68,19 @@ export default function Admin() {
     setLoading(true)
     setErro('')
     try {
-      const [statsRes, pendentesRes, disciplinasRes, adminsRes] = await Promise.all([
+      const [statsRes, pendentesRes, disciplinasRes, adminsRes, prioritariosRes] = await Promise.all([
         adminService.estatisticas(),
         adminService.pendentes(),
         disciplinaService.listar(),
         adminService.administradores(),
+        adminService.prioritarios(),
       ])
       setStats(statsRes.data)
       setPeriodoAberto(statsRes.data.periodo_aberto)
       setPendentes(pendentesRes.data)
       setDisciplinas(disciplinasRes.data)
       setAdmins(adminsRes.data)
+      setPrioritarios(prioritariosRes.data)
     } catch (err) {
       if (err.response?.status === 403) {
         setErro('Acesso restrito ao administrador.')
@@ -227,6 +236,43 @@ export default function Admin() {
     }
   }
 
+  async function darPrioridadePorMatricula(e) {
+    e.preventDefault()
+    setErroPrioridade('')
+    setAcao('prioridade')
+    try {
+      const busca = await alunoService.buscar(matriculaPrioridade.trim())
+      await adminService.definirPrioridade(busca.data.id, true, motivoPrioridade.trim() || null)
+      setMatriculaPrioridade('')
+      setMotivoPrioridade('')
+      setMsg(`${busca.data.nome} agora tem prioridade no escalonamento.`)
+      await carregarTudo()
+    } catch (err) {
+      if (err.response?.status === 404) {
+        setErroPrioridade('Matrícula não encontrada. A pessoa precisa se cadastrar primeiro.')
+      } else {
+        setErroPrioridade('Não foi possível marcar prioridade.')
+      }
+    } finally {
+      setAcao('')
+    }
+  }
+
+  async function removerPrioridade(alunoId) {
+    if (!confirm('Remover a prioridade dessa pessoa?')) return
+    setAcao(`prioridade-${alunoId}`)
+    setErro('')
+    try {
+      await adminService.definirPrioridade(alunoId, false, null)
+      setMsg('Prioridade removida.')
+      await carregarTudo()
+    } catch {
+      setErro('Não foi possível remover a prioridade.')
+    } finally {
+      setAcao('')
+    }
+  }
+
   async function rebaixar(alunoId) {
     if (!confirm('Remover acesso admin desta pessoa?')) return
     setAcao(`rebaixar-${alunoId}`)
@@ -362,6 +408,74 @@ export default function Admin() {
                   </BotaoPrimario>
                 </div>
                 {erroPromover && <p className="text-xs text-red-600">{erroPromover}</p>}
+              </form>
+            </div>
+          )}
+        </div>
+
+        {/* Gerenciamento de prioridade (PCD e outros) */}
+        <div>
+          <button
+            onClick={() => setMostrarPrioridade(v => !v)}
+            className="mb-2 flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-700"
+          >
+            <span>Prioridade no escalonamento ({prioritarios.length})</span>
+            <span>{mostrarPrioridade ? '−' : '+'}</span>
+          </button>
+
+          {mostrarPrioridade && (
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-xs leading-5 text-slate-500">
+                Quem tem prioridade (ex: PCD) sobe pro topo do escalonamento e da alocação de
+                vagas, mesmo com CR mais baixo. O motivo fica visível só aqui, pra você — não
+                aparece pros outros alunos na lista pública.
+              </p>
+
+              {prioritarios.length === 0 ? (
+                <p className="py-2 text-xs text-slate-400">Ninguém marcado com prioridade ainda.</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {prioritarios.map(a => (
+                    <div key={a.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="min-w-0">
+                        <p className="text-sm text-slate-800">
+                          {a.nome} <span className="text-slate-500">({a.matricula})</span>
+                        </p>
+                        {a.motivo_prioridade && (
+                          <p className="text-xs text-slate-500">{a.motivo_prioridade}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => removerPrioridade(a.id)}
+                        disabled={acao === `prioridade-${a.id}`}
+                        className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={darPrioridadePorMatricula} className="flex flex-col gap-2 border-t border-slate-100 pt-3">
+                <p className="text-xs text-slate-500">Dar prioridade (a pessoa precisa já estar cadastrada)</p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Matrícula"
+                    value={matriculaPrioridade}
+                    onChange={e => setMatriculaPrioridade(e.target.value)}
+                    required
+                  />
+                  <BotaoPrimario type="submit" disabled={acao === 'prioridade'} className="whitespace-nowrap">
+                    {acao === 'prioridade' ? '...' : 'Dar prioridade'}
+                  </BotaoPrimario>
+                </div>
+                <Input
+                  placeholder="Motivo (ex: PCD — laudo anexado), opcional mas recomendado"
+                  value={motivoPrioridade}
+                  onChange={e => setMotivoPrioridade(e.target.value)}
+                />
+                {erroPrioridade && <p className="text-xs text-red-600">{erroPrioridade}</p>}
               </form>
             </div>
           )}
