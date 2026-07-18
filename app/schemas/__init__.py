@@ -31,12 +31,24 @@ class PrioridadeUpdate(BaseModel):
     motivo: Optional[str] = None
 
 
+class SenhaResetada(BaseModel):
+    matricula: str
+    nome: str
+    senha_temporaria: str
+
+
+class TrocarSenhaInput(BaseModel):
+    senha_atual: str
+    senha_nova: str
+
+
 class RejeitarComprovante(BaseModel):
     motivo: Optional[str] = None
 
 
 class PeriodoOut(BaseModel):
     aberto: bool
+    alocacao_liberada: bool
     model_config = {"from_attributes": True}
 
 
@@ -49,6 +61,7 @@ class EstatisticasOut(BaseModel):
     inscricoes_em_fila: int
     inscricoes_alternativa_pendente: int
     periodo_aberto: bool
+    alocacao_liberada: bool
 
 
 class TurmaOut(BaseModel):

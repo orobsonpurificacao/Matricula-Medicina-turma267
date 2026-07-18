@@ -36,18 +36,26 @@ def _migrar_colunas_novas():
     """
     from sqlalchemy import inspect, text
     inspetor = inspect(engine)
-    colunas_existentes = {c["name"] for c in inspetor.get_columns("alunos")}
 
-    colunas_novas = {
-        "prioridade": "BOOLEAN NOT NULL DEFAULT 0",
-        "motivo_prioridade": "VARCHAR(255)",
-        "ordem_prioridade": "INTEGER",
+    colunas_por_tabela = {
+        "alunos": {
+            "prioridade": "BOOLEAN NOT NULL DEFAULT 0",
+            "motivo_prioridade": "VARCHAR(255)",
+            "ordem_prioridade": "INTEGER",
+        },
+        "periodo_inscricao": {
+            "alocacao_liberada": "BOOLEAN NOT NULL DEFAULT 0",
+        },
     }
 
     with engine.begin() as conn:
-        for nome, definicao in colunas_novas.items():
-            if nome not in colunas_existentes:
-                conn.execute(text(f"ALTER TABLE alunos ADD COLUMN {nome} {definicao}"))
+        for tabela, colunas_novas in colunas_por_tabela.items():
+            if tabela not in inspetor.get_table_names():
+                continue  # tabela nova, create_all() já cuidou dela inteira
+            colunas_existentes = {c["name"] for c in inspetor.get_columns(tabela)}
+            for nome, definicao in colunas_novas.items():
+                if nome not in colunas_existentes:
+                    conn.execute(text(f"ALTER TABLE {tabela} ADD COLUMN {nome} {definicao}"))
 
 
 def _seed_periodo():

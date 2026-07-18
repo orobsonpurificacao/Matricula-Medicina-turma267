@@ -36,6 +36,7 @@ export default function Admin() {
   const alunoAtual = JSON.parse(localStorage.getItem('aluno') || '{}')
   const [stats, setStats] = useState(null)
   const [periodoAberto, setPeriodoAberto] = useState(false)
+  const [alocacaoLiberada, setAlocacaoLiberada] = useState(false)
   const [pendentes, setPendentes] = useState([])
   const [loading, setLoading] = useState(true)
   const [acao, setAcao] = useState('') // trava botões durante requests
@@ -64,6 +65,9 @@ export default function Admin() {
   const [motivoPorAluno, setMotivoPorAluno] = useState({})
   const [ordemPorAluno, setOrdemPorAluno] = useState({})
   const [erroPrioridade, setErroPrioridade] = useState('')
+
+  // Reset de senha
+  const [senhaResetada, setSenhaResetada] = useState(null) // { nome, matricula, senha_temporaria }
   const [matriculaPromover, setMatriculaPromover] = useState('')
   const [erroPromover, setErroPromover] = useState('')
 
@@ -82,6 +86,7 @@ export default function Admin() {
       ])
       setStats(statsRes.data)
       setPeriodoAberto(statsRes.data.periodo_aberto)
+      setAlocacaoLiberada(statsRes.data.alocacao_liberada)
       setPendentes(pendentesRes.data)
       setDisciplinas(disciplinasRes.data)
       setAdmins(adminsRes.data)
@@ -114,6 +119,24 @@ export default function Admin() {
       setMsg(periodoAberto ? 'Período fechado.' : 'Período aberto.')
     } catch {
       setErro('Não foi possível alterar o período.')
+    } finally {
+      setAcao('')
+    }
+  }
+
+  async function toggleAlocacao() {
+    setAcao('alocacao-tela')
+    setMsg('')
+    try {
+      if (alocacaoLiberada) {
+        await adminService.bloquearAlocacao()
+      } else {
+        await adminService.liberarAlocacao()
+      }
+      await carregarTudo()
+      setMsg(alocacaoLiberada ? 'Tela de alocação bloqueada pros alunos.' : 'Tela de alocação liberada pros alunos.')
+    } catch {
+      setErro('Não foi possível alterar a liberação da alocação.')
     } finally {
       setAcao('')
     }
@@ -243,6 +266,20 @@ export default function Admin() {
     }
   }
 
+  async function resetarSenha(alunoId) {
+    if (!confirm('Gerar uma senha temporária nova pra essa pessoa? A senha atual dela deixa de funcionar imediatamente.')) return
+    setAcao(`senha-${alunoId}`)
+    setErroPrioridade('')
+    try {
+      const res = await adminService.resetarSenha(alunoId)
+      setSenhaResetada(res.data)
+    } catch {
+      setErroPrioridade('Não foi possível resetar a senha.')
+    } finally {
+      setAcao('')
+    }
+  }
+
   async function darPrioridade(alunoId, nome) {
     setErroPrioridade('')
     setAcao(`prioridade-${alunoId}`)
@@ -359,6 +396,29 @@ export default function Admin() {
             }`}
           >
             {acao === 'periodo' ? '...' : periodoAberto ? 'Fechar período' : 'Abrir período'}
+          </button>
+        </div>
+
+        {/* Liberação da tela de alocação */}
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Tela de alocação (por disciplina/turma)</p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {alocacaoLiberada
+                ? 'Alunos já podem ver quem está alocado em cada turma.'
+                : 'Alunos veem "Alocação em processamento. Aguarde liberação."'}
+            </p>
+          </div>
+          <button
+            onClick={toggleAlocacao}
+            disabled={acao === 'alocacao-tela'}
+            className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              alocacaoLiberada
+                ? 'bg-red-500 text-white hover:bg-red-600'
+                : 'bg-emerald-500 text-white hover:bg-emerald-600'
+            }`}
+          >
+            {acao === 'alocacao-tela' ? '...' : alocacaoLiberada ? 'Bloquear tela' : 'Liberar tela'}
           </button>
         </div>
 
@@ -499,6 +559,7 @@ export default function Admin() {
                         <th className="px-2 py-2 font-medium">Nome</th>
                         <th className="px-3 py-2 font-medium">Motivo</th>
                         <th className="px-3 py-2 font-medium">Ordem</th>
+                        <th className="px-3 py-2 font-medium">Senha</th>
                         <th className="px-3 py-2 text-right font-medium">Ação</th>
                       </tr>
                     </thead>
@@ -529,6 +590,17 @@ export default function Admin() {
                                 placeholder="Ordem"
                                 className="w-16 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 outline-none focus:border-orange-400"
                               />
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {a.id && (
+                              <button
+                                onClick={() => resetarSenha(a.id)}
+                                disabled={acao === `senha-${a.id}`}
+                                className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                {acao === `senha-${a.id}` ? '...' : 'Resetar'}
+                              </button>
                             )}
                           </td>
                           <td className="px-3 py-2 text-right">
@@ -775,6 +847,36 @@ export default function Admin() {
           )}
         </div>
       </div>
+
+      {/* Modal de senha resetada */}
+      {senhaResetada && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-6">
+          <div className="flex w-full max-w-sm flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+            <p className="text-sm font-semibold text-slate-800">Senha resetada</p>
+            <p className="text-xs leading-5 text-slate-500">
+              Repassa essa senha temporária pra <strong>{senhaResetada.nome}</strong> ({senhaResetada.matricula})
+              por fora (WhatsApp, etc.) — ela some daqui assim que você fechar essa janela, não fica salva em lugar nenhum.
+            </p>
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+              <code className="flex-1 text-sm font-semibold tracking-wide text-slate-800">
+                {senhaResetada.senha_temporaria}
+              </code>
+              <button
+                onClick={() => navigator.clipboard.writeText(senhaResetada.senha_temporaria)}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+              >
+                Copiar
+              </button>
+            </div>
+            <button
+              onClick={() => setSenhaResetada(null)}
+              className="mt-1 self-end rounded-xl bg-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-600"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal simples de rejeição */}
       {rejeitando !== null && (

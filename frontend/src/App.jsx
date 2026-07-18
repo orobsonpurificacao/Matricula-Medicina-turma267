@@ -6,6 +6,8 @@ import Home from './pages/Home'
 import Confirmacao from './pages/Confirmacao'
 import Resultado from './pages/Resultado'
 import Escalonamento from './pages/Escalonamento'
+import Alocacao from './pages/Alocacao'
+import TrocarSenha from './pages/TrocarSenha'
 import Admin from './pages/Admin'
 
 function RotaProtegida({ children }) {
@@ -40,6 +42,12 @@ export default function App() {
         } />
         <Route path="/escalonamento" element={
           <RotaProtegida><Escalonamento /></RotaProtegida>
+        } />
+        <Route path="/alocacao" element={
+          <RotaProtegida><Alocacao /></RotaProtegida>
+        } />
+        <Route path="/trocar-senha" element={
+          <RotaProtegida><TrocarSenha /></RotaProtegida>
         } />
         <Route path="/admin" element={
           <RotaProtegidaAdmin><Admin /></RotaProtegidaAdmin>

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Aluno
-from app.schemas import AlunoOut, AlunoAdmin, RejeitarComprovante
+from app.schemas import AlunoOut, AlunoAdmin, RejeitarComprovante, TrocarSenhaInput
 from app.routers.admin import get_admin_atual
 from passlib.context import CryptContext
 import shutil, os, uuid
@@ -104,3 +104,27 @@ def rejeitar_aluno(
     db.commit()
     db.refresh(aluno)
     return aluno
+
+
+@router.post("/{matricula}/trocar-senha")
+def trocar_senha(matricula: str, payload: TrocarSenhaInput, db: Session = Depends(get_db)):
+    """
+    O próprio aluno troca a senha, sem precisar de admin — mas precisa
+    saber a senha ATUAL pra provar que é ele mesmo (não tem sessão/token
+    nesse sistema, então é essa a verificação de identidade possível).
+    Serve tanto pra trocar a senha temporária que um admin gerou quanto
+    pra trocar a senha normal por vontade própria.
+    """
+    aluno = db.query(Aluno).filter(Aluno.matricula == matricula).first()
+    if not aluno:
+        raise HTTPException(404, "Aluno não encontrado")
+
+    if not pwd_context.verify(payload.senha_atual, aluno.senha_hash):
+        raise HTTPException(401, "Senha atual incorreta")
+
+    if len(payload.senha_nova) < 8:
+        raise HTTPException(400, "A nova senha precisa ter pelo menos 8 caracteres")
+
+    aluno.senha_hash = pwd_context.hash(payload.senha_nova)
+    db.commit()
+    return {"status": "ok"}

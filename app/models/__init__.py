@@ -37,10 +37,12 @@ class Aluno(Base):
 
 
 class PeriodoInscricao(Base):
-    """Singleton (sempre 1 linha, id=1). Controla se alunos podem se inscrever."""
+    """Singleton (sempre 1 linha, id=1). Controla se alunos podem se inscrever
+    e se a tela de alocação já está liberada pra consulta."""
     __tablename__ = "periodo_inscricao"
     id = Column(Integer, primary_key=True, default=1)
     aberto = Column(Boolean, default=False, nullable=False)
+    alocacao_liberada = Column(Boolean, default=False, nullable=False)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 

@@ -89,6 +89,12 @@ export default function Home() {
             </button>
           )}
           <button
+            onClick={() => navigate("/trocar-senha")}
+            className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-50"
+          >
+            Trocar senha
+          </button>
+          <button
             onClick={sair}
             className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-50"
           >
@@ -144,7 +150,7 @@ export default function Home() {
         </div>
 
         {/* Ações — embaixo da grade */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <button
             onClick={() => navigate("/disciplinas")}
             className="flex flex-col items-center gap-1.5 rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm transition hover:border-orange-300"
@@ -158,6 +164,13 @@ export default function Home() {
           >
             <span className="text-xl">📋</span>
             <span className="text-xs font-medium text-slate-700">Consulte a lista com o escalonamento</span>
+          </button>
+          <button
+            onClick={() => navigate("/alocacao")}
+            className="flex flex-col items-center gap-1.5 rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm transition hover:border-orange-300"
+          >
+            <span className="text-xl">🏫</span>
+            <span className="text-xs font-medium text-slate-700">Consulte a alocação</span>
           </button>
           <a
             href="https://sigaa.ufba.br/sigaa/public/home.jsf"

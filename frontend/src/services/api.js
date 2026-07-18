@@ -26,6 +26,8 @@ export const alunoService = {
     form.append("senha", senha)
     return api.post("/alunos/login", form)
   },
+  trocarSenha: (matricula, senhaAtual, senhaNova) =>
+    api.post(`/alunos/${matricula}/trocar-senha`, { senha_atual: senhaAtual, senha_nova: senhaNova }),
 }
 
 export const disciplinaService = {
@@ -52,6 +54,10 @@ export const escalonamentoService = {
   listar: () => api.get("/escalonamento/lista"),
 }
 
+export const alocacaoService = {
+  listar: () => api.get("/alocacao/lista"),
+}
+
 export const adminService = {
   alocar: () => api.post("/admin/alocar"),
   pendentes: () => api.get("/alunos/admin/pendentes"),
@@ -62,11 +68,14 @@ export const adminService = {
   getPeriodo: () => api.get("/admin/periodo"),
   abrirPeriodo: () => api.post("/admin/periodo/abrir"),
   fecharPeriodo: () => api.post("/admin/periodo/fechar"),
+  liberarAlocacao: () => api.post("/admin/alocacao/liberar"),
+  bloquearAlocacao: () => api.post("/admin/alocacao/bloquear"),
   administradores: () => api.get("/admin/administradores"),
   promover: (id) => api.post(`/admin/promover/${id}`),
   rebaixar: (id) => api.post(`/admin/rebaixar/${id}`),
   prioritarios: () => api.get("/admin/prioritarios"),
   definirPrioridade: (id, ativar, motivo, ordem) => api.post(`/admin/prioridade/${id}`, { ativar, motivo, ordem }),
+  resetarSenha: (id) => api.post(`/admin/resetar-senha/${id}`),
 }
 
 export default api

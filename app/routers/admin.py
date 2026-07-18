@@ -3,7 +3,12 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.alocacao import rodar_alocacao
 from app.models import Aluno, Inscricao, StatusInscricao, PeriodoInscricao
-from app.schemas import ResultadoAlocacao, PeriodoOut, EstatisticasOut, AlunoOut, AlunoAdmin, PrioridadeUpdate
+from app.schemas import ResultadoAlocacao, PeriodoOut, EstatisticasOut, AlunoOut, AlunoAdmin, PrioridadeUpdate, SenhaResetada
+from passlib.context import CryptContext
+import secrets
+import string
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -60,6 +65,26 @@ def fechar_periodo(db: Session = Depends(get_db), admin: Aluno = Depends(get_adm
     return periodo
 
 
+@router.post("/alocacao/liberar", response_model=PeriodoOut)
+def liberar_alocacao(db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
+    """Libera a tela de alocação pros alunos consultarem. Antes disso,
+    a tela mostra só 'Alocação em processamento. Aguarde liberação.'"""
+    periodo = db.query(PeriodoInscricao).filter(PeriodoInscricao.id == 1).first()
+    periodo.alocacao_liberada = True
+    db.commit()
+    db.refresh(periodo)
+    return periodo
+
+
+@router.post("/alocacao/bloquear", response_model=PeriodoOut)
+def bloquear_alocacao(db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
+    periodo = db.query(PeriodoInscricao).filter(PeriodoInscricao.id == 1).first()
+    periodo.alocacao_liberada = False
+    db.commit()
+    db.refresh(periodo)
+    return periodo
+
+
 @router.get("/estatisticas", response_model=EstatisticasOut)
 def get_estatisticas(db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
     periodo = db.query(PeriodoInscricao).filter(PeriodoInscricao.id == 1).first()
@@ -80,6 +105,7 @@ def get_estatisticas(db: Session = Depends(get_db), admin: Aluno = Depends(get_a
             Inscricao.status == StatusInscricao.alternativa_pendente
         ).count(),
         periodo_aberto=periodo.aberto if periodo else False,
+        alocacao_liberada=periodo.alocacao_liberada if periodo else False,
     )
 
 
@@ -177,3 +203,31 @@ def definir_prioridade(
     db.commit()
     db.refresh(aluno)
     return aluno
+
+
+@router.post("/resetar-senha/{aluno_id}", response_model=SenhaResetada)
+def resetar_senha(
+    aluno_id: int, db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)
+):
+    """
+    Gera uma senha temporária aleatória pro aluno e já salva o hash dela
+    no banco. A senha em texto puro só existe nesse momento, na resposta —
+    não fica guardada em lugar nenhum depois disso. O admin precisa
+    repassar pro aluno por fora (WhatsApp, etc.) e orientar a trocar
+    depois, se um dia existir tela de troca de senha pelo próprio aluno.
+    """
+    aluno = db.query(Aluno).filter(Aluno.id == aluno_id).first()
+    if not aluno:
+        raise HTTPException(404, "Aluno não encontrado")
+
+    alfabeto = string.ascii_uppercase + string.ascii_lowercase + string.digits
+    senha_temporaria = "".join(secrets.choice(alfabeto) for _ in range(8))
+
+    aluno.senha_hash = pwd_context.hash(senha_temporaria)
+    db.commit()
+
+    return SenhaResetada(
+        matricula=aluno.matricula,
+        nome=aluno.nome,
+        senha_temporaria=senha_temporaria,
+    )

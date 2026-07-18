@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.database import init_db
-from app.routers import alunos, disciplinas, inscricoes, admin, escalonamento
+from app.routers import alunos, disciplinas, inscricoes, admin, escalonamento, alocacao
 import os
 
 app = FastAPI(
@@ -23,6 +23,7 @@ app.include_router(disciplinas.router)
 app.include_router(inscricoes.router)
 app.include_router(admin.router)
 app.include_router(escalonamento.router)
+app.include_router(alocacao.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

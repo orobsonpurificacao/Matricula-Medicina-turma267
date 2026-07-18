@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from app.database import get_db
 from app.ranking import ordem_geral
 
@@ -13,6 +13,7 @@ class AlunoEscalonado(BaseModel):
     cr: float
     matricula: str
     nome: str
+    motivo_prioridade: Optional[str] = None
 
 
 @router.get("/lista", response_model=List[AlunoEscalonado])
@@ -22,9 +23,10 @@ def listar_escalonamento(db: Session = Depends(get_db)):
     ordem que a alocação de vagas usa de verdade (ver app/ranking.py) —
     não tem relação direta com disciplina, turma ou vaga, é só a posição.
 
-    Alunos com prioridade (marcada pelo admin, ex: PCD) aparecem mais
-    acima mesmo com CR mais baixo — mas isso não é exposto aqui, o motivo
-    e o próprio fato de ter prioridade ficam visíveis só pro admin.
+    Quem tem prioridade (marcada pelo admin, ex: PCD) aparece mais acima
+    mesmo com CR mais baixo, e o motivo fica visível aqui pra todo mundo —
+    decisão explícita de transparência do processo, igual a listas de
+    cota em concursos públicos, que ficam abertas pra fiscalização.
     """
     alunos = ordem_geral(db)
 
@@ -34,6 +36,7 @@ def listar_escalonamento(db: Session = Depends(get_db)):
             cr=a.cr,
             matricula=a.matricula,
             nome=a.nome,
+            motivo_prioridade=a.motivo_prioridade if a.prioridade else None,
         )
         for idx, a in enumerate(alunos)
     ]

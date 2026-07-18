@@ -85,6 +85,7 @@ export default function Escalonamento() {
                   <th className="px-2 py-2.5 text-xs font-medium">CR</th>
                   <th className="px-2 py-2.5 text-xs font-medium">Matrícula</th>
                   <th className="px-4 py-2.5 text-xs font-medium">Nome</th>
+                  <th className="px-4 py-2.5 text-xs font-medium">Motivo</th>
                 </tr>
               </thead>
               <tbody>
@@ -101,6 +102,13 @@ export default function Escalonamento() {
                       <td className="px-4 py-2.5 font-medium text-slate-800">
                         {a.nome}
                         {souEu && <span className="ml-1.5 text-orange-600">(você)</span>}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {a.motivo_prioridade && (
+                          <span className="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-orange-700">
+                            {a.motivo_prioridade}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   )
