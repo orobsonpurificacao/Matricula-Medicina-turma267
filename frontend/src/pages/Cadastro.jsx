@@ -72,7 +72,7 @@ export default function Cadastro() {
     }
 
     if (!arquivo) {
-      setErro('Anexe o comprovante de matrícula.')
+      setErro('Anexe o histórico com o seu CR.')
       return
     }
 
@@ -200,7 +200,7 @@ export default function Cadastro() {
 
           <p className="mt-4 max-w-lg text-base leading-7 text-slate-600">
             Preencha seus dados acadêmicos, crie uma senha e envie
-            o comprovante de matrícula para acessar as disciplinas.
+            o histórico com o seu CR para acessar as disciplinas.
           </p>
 
           <div className="mt-7 w-full max-w-lg rounded-2xl border border-blue-200 bg-blue-50 p-4 text-left">
@@ -215,7 +215,7 @@ export default function Cadastro() {
                 </p>
 
                 <p className="mt-1 text-xs leading-5 text-blue-700">
-                  O comprovante será validado pela administração antes
+                  O histórico será validado pela administração antes
                   da etapa final de alocação de vagas.
                 </p>
               </div>
@@ -491,11 +491,11 @@ export default function Cadastro() {
 
                   <div>
                     <h3 className="text-sm font-semibold text-slate-800">
-                      Comprovante
+                      Histórico
                     </h3>
 
                     <p className="text-xs text-slate-500">
-                      Envie o comprovante de matrícula
+                      Envie o histórico com o seu CR
                     </p>
                   </div>
                 </div>
@@ -529,7 +529,7 @@ export default function Cadastro() {
                     >
                       {arquivo
                         ? arquivo.name
-                        : 'Anexar comprovante de matrícula'}
+                        : 'Anexar histórico com CR'}
                     </p>
 
                     <p className="mt-1 text-xs text-slate-500">
@@ -545,6 +545,21 @@ export default function Cadastro() {
                   className="hidden"
                   onChange={handleArquivoSelecionado}
                 />
+
+                {/* Aviso de LGPD */}
+                <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                  <div className="flex gap-3">
+                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
+                      🔒
+                    </div>
+                    <p className="text-xs leading-5 text-emerald-800">
+                      <strong>Privacidade (LGPD):</strong> seu histórico é usado só pra um
+                      representante conferir seu CR. Assim que ele valida seu cadastro, o
+                      arquivo é <strong>eliminado imediatamente</strong> do servidor — não fica
+                      guardado depois disso.
+                    </p>
+                  </div>
+                </div>
               </section>
 
               {/* Aviso */}
@@ -556,7 +571,7 @@ export default function Cadastro() {
 
                   <p className="text-xs leading-5 text-blue-800">
                     Você poderá selecionar as disciplinas logo após
-                    concluir o cadastro. A validação do comprovante
+                    concluir o cadastro. A validação do histórico
                     ocorrerá antes da alocação de vagas.
                   </p>
                 </div>

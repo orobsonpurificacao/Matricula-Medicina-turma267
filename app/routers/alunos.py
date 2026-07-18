@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Aluno
-from app.schemas import AlunoOut, AlunoAdmin, RejeitarComprovante, TrocarSenhaInput
+from app.schemas import AlunoOut, AlunoAdmin, RejeitarComprovante, TrocarSenhaInput, AlunoAdminUpdate
 from app.routers.admin import get_admin_atual
 from passlib.context import CryptContext
 import shutil, os, uuid
@@ -81,9 +81,16 @@ def validar_aluno(aluno_id: int, db: Session = Depends(get_db), admin: Aluno = D
     aluno = db.query(Aluno).filter(Aluno.id == aluno_id).first()
     if not aluno:
         raise HTTPException(404, "Aluno nao encontrado")
+
+    # LGPD: depois de validado, o histórico não precisa mais existir no
+    # servidor — apaga o arquivo de verdade, não só o registro no banco.
+    if aluno.comprovante_path and os.path.exists(aluno.comprovante_path):
+        os.remove(aluno.comprovante_path)
+
     aluno.validado = True
     aluno.recusado = False
     aluno.motivo_recusa = None
+    aluno.comprovante_path = None
     db.commit()
     db.refresh(aluno)
     return aluno
@@ -128,3 +135,75 @@ def trocar_senha(matricula: str, payload: TrocarSenhaInput, db: Session = Depend
     aluno.senha_hash = pwd_context.hash(payload.senha_nova)
     db.commit()
     return {"status": "ok"}
+
+
+@router.patch("/admin/{aluno_id}", response_model=AlunoAdmin)
+def editar_aluno(
+    aluno_id: int,
+    payload: AlunoAdminUpdate,
+    db: Session = Depends(get_db),
+    admin: Aluno = Depends(get_admin_atual),
+):
+    """
+    Admin corrige dado que o aluno preencheu errado (ex: CR digitado
+    diferente do que está no histórico) sem precisar rejeitar o cadastro
+    inteiro e obrigar a pessoa a se cadastrar de novo.
+    """
+    aluno = db.query(Aluno).filter(Aluno.id == aluno_id).first()
+    if not aluno:
+        raise HTTPException(404, "Aluno nao encontrado")
+
+    dados = payload.model_dump(exclude_unset=True)
+
+    if "cr" in dados and dados["cr"] is not None:
+        if not (0.0 <= dados["cr"] <= 10.0):
+            raise HTTPException(422, "CR deve estar entre 0 e 10")
+
+    if "email" in dados and dados["email"] is not None:
+        email_em_uso = (
+            db.query(Aluno)
+            .filter(Aluno.email == dados["email"], Aluno.id != aluno_id)
+            .first()
+        )
+        if email_em_uso:
+            raise HTTPException(400, "Email já está em uso por outro aluno")
+
+    for campo, valor in dados.items():
+        if valor is not None:
+            setattr(aluno, campo, valor)
+
+    db.commit()
+    db.refresh(aluno)
+    return aluno
+
+
+@router.post("/{matricula}/reenviar-comprovante", response_model=AlunoOut)
+def reenviar_comprovante(
+    matricula: str,
+    comprovante: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """
+    Aluno que teve o comprovante/histórico rejeitado manda um novo, sem
+    precisar recriar a conta. Volta pro estado 'pendente' de novo, pra
+    um admin validar (ou rejeitar de novo, se ainda estiver errado).
+    """
+    aluno = db.query(Aluno).filter(Aluno.matricula == matricula).first()
+    if not aluno:
+        raise HTTPException(404, "Aluno nao encontrado")
+    if not aluno.recusado:
+        raise HTTPException(400, "Esse aluno não está com o comprovante rejeitado")
+
+    ext = os.path.splitext(comprovante.filename)[1]
+    filename = f"{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    with open(filepath, "wb") as f:
+        shutil.copyfileobj(comprovante.file, f)
+
+    aluno.comprovante_path = filepath
+    aluno.recusado = False
+    aluno.motivo_recusa = None
+    aluno.validado = False
+    db.commit()
+    db.refresh(aluno)
+    return aluno

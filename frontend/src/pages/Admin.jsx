@@ -66,6 +66,9 @@ export default function Admin() {
   const [ordemPorAluno, setOrdemPorAluno] = useState({})
   const [erroPrioridade, setErroPrioridade] = useState('')
 
+  // Edição de dados do aluno (CR incorreto, etc)
+  const [crEditado, setCrEditado] = useState({})
+
   // Reset de senha
   const [senhaResetada, setSenhaResetada] = useState(null) // { nome, matricula, senha_temporaria }
   const [matriculaPromover, setMatriculaPromover] = useState('')
@@ -275,6 +278,23 @@ export default function Admin() {
       setSenhaResetada(res.data)
     } catch {
       setErroPrioridade('Não foi possível resetar a senha.')
+    } finally {
+      setAcao('')
+    }
+  }
+
+  async function salvarCR(alunoId) {
+    const novoValor = crEditado[alunoId]
+    if (novoValor === undefined || novoValor === '') return
+    setAcao(`cr-${alunoId}`)
+    setErro('')
+    try {
+      await adminService.editarAluno(alunoId, { cr: parseFloat(novoValor) })
+      setCrEditado(c => { const n = { ...c }; delete n[alunoId]; return n })
+      setMsg('CR corrigido.')
+      await carregarTudo()
+    } catch (err) {
+      setErro(err.response?.data?.detail || 'Não foi possível corrigir o CR.')
     } finally {
       setAcao('')
     }
@@ -812,9 +832,30 @@ export default function Admin() {
             <div className="flex flex-col gap-2">
               {pendentes.map(aluno => (
                 <div key={aluno.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-800">{aluno.nome}</p>
-                    <p className="text-xs text-slate-500">{aluno.matricula} · CR {aluno.cr.toFixed(3)}</p>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <span className="text-xs text-slate-500">{aluno.matricula} · CR</span>
+                      <input
+                        type="number"
+                        step="0.001"
+                        min="0"
+                        max="10"
+                        placeholder={aluno.cr.toFixed(3)}
+                        value={crEditado[aluno.id] ?? ''}
+                        onChange={e => setCrEditado(c => ({ ...c, [aluno.id]: e.target.value }))}
+                        className="w-20 rounded-lg border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-700 outline-none focus:border-orange-400"
+                      />
+                      {crEditado[aluno.id] !== undefined && crEditado[aluno.id] !== '' && (
+                        <button
+                          onClick={() => salvarCR(aluno.id)}
+                          disabled={acao === `cr-${aluno.id}`}
+                          className="rounded-lg border border-orange-300 bg-white px-2 py-0.5 text-xs font-medium text-orange-700 hover:bg-orange-50 disabled:opacity-40"
+                        >
+                          Salvar
+                        </button>
+                      )}
+                    </div>
                     {aluno.comprovante_path && (
                       <a
                         href={`/api/uploads/${aluno.comprovante_path.split('/').pop()}`}
@@ -822,7 +863,7 @@ export default function Admin() {
                         rel="noreferrer"
                         className="text-xs font-medium text-blue-600 hover:text-blue-700"
                       >
-                        Ver comprovante
+                        Ver histórico
                       </a>
                     )}
                   </div>

@@ -24,6 +24,11 @@ export default function Login() {
 
       localStorage.setItem('aluno', JSON.stringify(res.data))
 
+      if (res.data.recusado) {
+        navigate('/reenviar-comprovante')
+        return
+      }
+
       // 2º acesso (já tem alguma inscrição feita) cai na Home; quem nunca
       // escolheu nada ainda vai direto pra tela de escolha de disciplinas.
       try {

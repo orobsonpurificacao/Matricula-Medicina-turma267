@@ -1,4 +1,4 @@
-import { parseHorario, paraMinutos, DIAS_ORDEM } from '../utils/grade'
+import { parseHorario, paraMinutos } from '../utils/grade'
 
 const INICIO_GRADE = 7 * 60   // 07:00
 const FIM_GRADE = 22 * 60     // 22:00
@@ -8,10 +8,7 @@ const LARGURA_COLUNA = 110    // px por dia — largo o bastante pro nome não t
 
 export default function GradeHoraria({ itens }) {
   // itens: [{ turma, disciplinaNome, cor, conflito }]
-  const diasComAula = DIAS_ORDEM.filter(dia =>
-    itens.some(it => parseHorario(it.turma.horario).some(seg => seg.dias.includes(dia)))
-  )
-  const dias = diasComAula.length > 0 ? diasComAula : ['Seg', 'Ter', 'Qua', 'Qui', 'Sex']
+  const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex']
 
   const horas = []
   for (let h = 7; h <= 22; h++) horas.push(h)

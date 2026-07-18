@@ -28,6 +28,13 @@ export const alunoService = {
   },
   trocarSenha: (matricula, senhaAtual, senhaNova) =>
     api.post(`/alunos/${matricula}/trocar-senha`, { senha_atual: senhaAtual, senha_nova: senhaNova }),
+  reenviarComprovante: (matricula, arquivo) => {
+    const form = new FormData()
+    form.append("comprovante", arquivo)
+    return api.post(`/alunos/${matricula}/reenviar-comprovante`, form, {
+      headers: { "Content-Type": "multipart/form-data" }
+    })
+  },
 }
 
 export const disciplinaService = {
@@ -64,6 +71,7 @@ export const adminService = {
   todos: () => api.get("/alunos/admin/todos"),
   validar: (id) => api.patch(`/alunos/admin/${id}/validar`),
   rejeitar: (id, motivo) => api.patch(`/alunos/admin/${id}/rejeitar`, { motivo }),
+  editarAluno: (id, dados) => api.patch(`/alunos/admin/${id}`, dados),
   estatisticas: () => api.get("/admin/estatisticas"),
   getPeriodo: () => api.get("/admin/periodo"),
   abrirPeriodo: () => api.post("/admin/periodo/abrir"),

@@ -12,7 +12,7 @@ router = APIRouter(prefix="/alocacao", tags=["Alocação"])
 class AlunoAlocado(BaseModel):
     matricula: str
     nome: str
-    cr: float
+    posicao_escalonamento: int
     status: StatusInscricao
 
 
@@ -77,7 +77,7 @@ def listar_alocacao(db: Session = Depends(get_db)):
                 AlunoAlocado(
                     matricula=i.aluno.matricula,
                     nome=i.aluno.nome,
-                    cr=i.aluno.cr,
+                    posicao_escalonamento=posicoes.get(i.aluno_id, 0),
                     status=i.status,
                 )
                 for i in ordenadas

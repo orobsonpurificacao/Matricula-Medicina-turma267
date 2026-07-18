@@ -8,6 +8,7 @@ import Resultado from './pages/Resultado'
 import Escalonamento from './pages/Escalonamento'
 import Alocacao from './pages/Alocacao'
 import TrocarSenha from './pages/TrocarSenha'
+import ReenviarComprovante from './pages/ReenviarComprovante'
 import Admin from './pages/Admin'
 
 function RotaProtegida({ children }) {
@@ -48,6 +49,9 @@ export default function App() {
         } />
         <Route path="/trocar-senha" element={
           <RotaProtegida><TrocarSenha /></RotaProtegida>
+        } />
+        <Route path="/reenviar-comprovante" element={
+          <RotaProtegida><ReenviarComprovante /></RotaProtegida>
         } />
         <Route path="/admin" element={
           <RotaProtegidaAdmin><Admin /></RotaProtegidaAdmin>

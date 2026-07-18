@@ -12,9 +12,16 @@ class AlunoOut(BaseModel):
     cr: float
     validado: bool
     recusado: bool
+    motivo_recusa: Optional[str] = None
     is_admin: bool
     criado_em: datetime
     model_config = {"from_attributes": True}
+
+
+class AlunoAdminUpdate(BaseModel):
+    nome: Optional[str] = None
+    email: Optional[str] = None
+    cr: Optional[float] = None
 
 
 class AlunoAdmin(AlunoOut):
