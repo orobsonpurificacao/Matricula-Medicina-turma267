@@ -45,6 +45,10 @@ def _migrar_colunas_novas():
         },
         "periodo_inscricao": {
             "alocacao_liberada": "BOOLEAN NOT NULL DEFAULT 0",
+            "escalonamento_liberado": "BOOLEAN NOT NULL DEFAULT 0",
+        },
+        "turmas": {
+            "vagas_reservadas": "INTEGER NOT NULL DEFAULT 0",
         },
     }
 

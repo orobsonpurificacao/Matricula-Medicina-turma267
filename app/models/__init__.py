@@ -37,11 +37,13 @@ class Aluno(Base):
 
 
 class PeriodoInscricao(Base):
-    """Singleton (sempre 1 linha, id=1). Controla se alunos podem se inscrever
-    e se a tela de alocação já está liberada pra consulta."""
+    """Singleton (sempre 1 linha, id=1). Controla se alunos podem se inscrever,
+    se a tela de escalonamento está liberada, e se a tela de alocação está
+    liberada pra consulta."""
     __tablename__ = "periodo_inscricao"
     id = Column(Integer, primary_key=True, default=1)
     aberto = Column(Boolean, default=False, nullable=False)
+    escalonamento_liberado = Column(Boolean, default=False, nullable=False)
     alocacao_liberada = Column(Boolean, default=False, nullable=False)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -68,6 +70,7 @@ class Turma(Base):
     sala = Column(String(50), nullable=True)
     vagas = Column(Integer, nullable=False)
     vagas_ocupadas = Column(Integer, default=0)
+    vagas_reservadas = Column(Integer, default=0, nullable=False)
     disciplina = relationship("Disciplina", back_populates="turmas")
     inscricoes = relationship("Inscricao", back_populates="turma")
 

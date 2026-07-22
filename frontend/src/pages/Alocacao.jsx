@@ -135,6 +135,11 @@ export default function Alocacao() {
                         </p>
                         <p className="text-xs text-slate-500">
                           {t.professor} · {t.vagas_ocupadas}/{t.vagas} vagas
+                          {t.vagas_reservadas > 0 && (
+                            <span className="ml-1 font-medium text-orange-600">
+                              · {t.vagas_reservadas} reservada{t.vagas_reservadas !== 1 ? "s" : ""} para estudante de turma anterior
+                            </span>
+                          )}
                         </p>
                       </div>
 

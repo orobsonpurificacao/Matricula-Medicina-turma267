@@ -320,10 +320,10 @@ export default function Cadastro() {
                         type="number"
                         value={form.cr}
                         onChange={(e) => set('cr', e.target.value)}
-                        placeholder="Ex.: 8.758"
+                        placeholder="Ex.: 8.7580"
                         min="0"
                         max="10"
-                        step="0.001"
+                        step="0.0001"
                         className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-100"
                         required
                       />

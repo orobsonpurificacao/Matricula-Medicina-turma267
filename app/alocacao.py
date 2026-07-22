@@ -60,7 +60,7 @@ def rodar_alocacao(db: Session) -> ResultadoAlocacao:
 
     for turma_id, lista in por_turma.items():
         turma = db.query(Turma).filter(Turma.id == turma_id).first()
-        vagas_restantes = turma.vagas - turma.vagas_ocupadas
+        vagas_restantes = (turma.vagas - turma.vagas_reservadas) - turma.vagas_ocupadas
 
         # Ordena pela posição geral de escalonamento (prioridade + CR)
         lista_ordenada = sorted(
@@ -94,7 +94,7 @@ def rodar_alocacao(db: Session) -> ResultadoAlocacao:
                 })
 
         # Atualiza vagas ocupadas na turma
-        turma.vagas_ocupadas = turma.vagas - vagas_restantes
+        turma.vagas_ocupadas = (turma.vagas - turma.vagas_reservadas) - vagas_restantes
 
     db.commit()
 
@@ -134,9 +134,10 @@ def realocar_turma(db: Session, turma_id: int):
 
     ordenadas = sorted(inscricoes, key=lambda i: posicoes.get(i.aluno_id, 10**9))
 
+    vagas_disputa = max(0, turma.vagas - turma.vagas_reservadas)
     for idx, insc in enumerate(ordenadas):
-        insc.status = StatusInscricao.alocado if idx < turma.vagas else StatusInscricao.fila
+        insc.status = StatusInscricao.alocado if idx < vagas_disputa else StatusInscricao.fila
 
-    turma.vagas_ocupadas = min(len(ordenadas), turma.vagas)
+    turma.vagas_ocupadas = min(len(ordenadas), vagas_disputa)
 
     db.commit()

@@ -56,6 +56,7 @@ class RejeitarComprovante(BaseModel):
 class PeriodoOut(BaseModel):
     aberto: bool
     alocacao_liberada: bool
+    escalonamento_liberado: bool
     model_config = {"from_attributes": True}
 
 
@@ -69,6 +70,7 @@ class EstatisticasOut(BaseModel):
     inscricoes_alternativa_pendente: int
     periodo_aberto: bool
     alocacao_liberada: bool
+    escalonamento_liberado: bool
 
 
 class TurmaOut(BaseModel):
@@ -80,6 +82,7 @@ class TurmaOut(BaseModel):
     sala: Optional[str] = None
     vagas: int
     vagas_ocupadas: int
+    vagas_reservadas: int
     model_config = {"from_attributes": True}
 
 
@@ -119,6 +122,7 @@ class TurmaUpdate(BaseModel):
     horario: Optional[str] = None
     sala: Optional[str] = None
     vagas: Optional[int] = None
+    vagas_reservadas: Optional[int] = None
 
 
 class DisciplinaUpdate(BaseModel):

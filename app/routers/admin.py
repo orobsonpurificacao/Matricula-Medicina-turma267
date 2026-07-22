@@ -85,6 +85,26 @@ def bloquear_alocacao(db: Session = Depends(get_db), admin: Aluno = Depends(get_
     return periodo
 
 
+@router.post("/escalonamento/liberar", response_model=PeriodoOut)
+def liberar_escalonamento(db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
+    """Libera a tela de escalonamento pros alunos consultarem. Antes disso,
+    a tela mostra só 'Escalonamento em processamento.'"""
+    periodo = db.query(PeriodoInscricao).filter(PeriodoInscricao.id == 1).first()
+    periodo.escalonamento_liberado = True
+    db.commit()
+    db.refresh(periodo)
+    return periodo
+
+
+@router.post("/escalonamento/bloquear", response_model=PeriodoOut)
+def bloquear_escalonamento(db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
+    periodo = db.query(PeriodoInscricao).filter(PeriodoInscricao.id == 1).first()
+    periodo.escalonamento_liberado = False
+    db.commit()
+    db.refresh(periodo)
+    return periodo
+
+
 @router.get("/estatisticas", response_model=EstatisticasOut)
 def get_estatisticas(db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
     periodo = db.query(PeriodoInscricao).filter(PeriodoInscricao.id == 1).first()
@@ -106,6 +126,7 @@ def get_estatisticas(db: Session = Depends(get_db), admin: Aluno = Depends(get_a
         ).count(),
         periodo_aberto=periodo.aberto if periodo else False,
         alocacao_liberada=periodo.alocacao_liberada if periodo else False,
+        escalonamento_liberado=periodo.escalonamento_liberado if periodo else False,
     )
 
 

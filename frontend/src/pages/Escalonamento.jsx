@@ -7,13 +7,20 @@ export default function Escalonamento() {
   const aluno = JSON.parse(localStorage.getItem("aluno") || "{}")
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
+  const [bloqueado, setBloqueado] = useState(false)
   const [erro, setErro] = useState("")
   const [filtro, setFiltro] = useState("")
 
   useEffect(() => {
     escalonamentoService.listar()
       .then(res => setLista(res.data))
-      .catch(() => setErro("Não foi possível carregar o escalonamento."))
+      .catch(err => {
+        if (err.response?.status === 403) {
+          setBloqueado(true)
+        } else {
+          setErro("Não foi possível carregar o escalonamento.")
+        }
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -28,6 +35,23 @@ export default function Escalonamento() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
         <p className="text-sm text-slate-500">Carregando escalonamento...</p>
+      </div>
+    )
+  }
+
+  if (bloqueado) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-100 px-6 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-white text-2xl">
+          ⏳
+        </div>
+        <p className="text-base font-semibold text-slate-800">Escalonamento em processamento</p>
+        <button
+          onClick={() => navigate("/home")}
+          className="mt-2 text-xs font-medium text-slate-500 hover:text-slate-700"
+        >
+          ← Voltar
+        </button>
       </div>
     )
   }
@@ -97,7 +121,7 @@ export default function Escalonamento() {
                       className={`border-t border-slate-100 ${souEu ? "bg-orange-50" : ""}`}
                     >
                       <td className="px-4 py-2.5 text-slate-500">{a.posicao}</td>
-                      <td className="px-2 py-2.5 text-slate-500">{a.cr.toFixed(3)}</td>
+                      <td className="px-2 py-2.5 text-slate-500">{a.cr.toFixed(4)}</td>
                       <td className="px-2 py-2.5 text-slate-500">{a.matricula}</td>
                       <td className="px-4 py-2.5 font-medium text-slate-800">
                         {a.nome}

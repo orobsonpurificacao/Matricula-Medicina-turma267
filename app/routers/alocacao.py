@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from app.database import get_db
-from app.models import Disciplina, Turma, Inscricao, PeriodoInscricao, StatusInscricao
+from app.models import Aluno, Disciplina, Turma, Inscricao, PeriodoInscricao, StatusInscricao
 from app.ranking import mapa_posicoes
 
 router = APIRouter(prefix="/alocacao", tags=["Alocação"])
@@ -24,6 +24,7 @@ class TurmaAlocacao(BaseModel):
     professor: str
     vagas: int
     vagas_ocupadas: int
+    vagas_reservadas: int
     alunos: List[AlunoAlocado]
 
 
@@ -36,16 +37,25 @@ class DisciplinaAlocacao(BaseModel):
 
 
 @router.get("/lista", response_model=List[DisciplinaAlocacao])
-def listar_alocacao(db: Session = Depends(get_db)):
+def listar_alocacao(
+    db: Session = Depends(get_db),
+    x_aluno_matricula: Optional[str] = Header(None, alias="X-Aluno-Matricula"),
+):
     """
     Mostra quem está alocado (ou em fila) em cada turma, agrupado por
     disciplina — diferente do escalonamento, que é uma lista geral sem
     relação com disciplina nenhuma. Só fica visível pros alunos depois
-    que um admin libera explicitamente (ver /admin/alocacao/liberar).
+    que um admin libera explicitamente (ver /admin/alocacao/liberar) —
+    admin sempre vê, mesmo sem liberar, pra poder conferir antes.
     """
-    periodo = db.query(PeriodoInscricao).filter(PeriodoInscricao.id == 1).first()
-    if not periodo or not periodo.alocacao_liberada:
-        raise HTTPException(403, "Alocação em processamento. Aguarde liberação.")
+    aluno_atual = None
+    if x_aluno_matricula:
+        aluno_atual = db.query(Aluno).filter(Aluno.matricula == x_aluno_matricula).first()
+
+    if not aluno_atual or not aluno_atual.is_admin:
+        periodo = db.query(PeriodoInscricao).filter(PeriodoInscricao.id == 1).first()
+        if not periodo or not periodo.alocacao_liberada:
+            raise HTTPException(403, "Alocação em processamento. Aguarde liberação.")
 
     posicoes = mapa_posicoes(db)
 
@@ -91,6 +101,7 @@ def listar_alocacao(db: Session = Depends(get_db)):
                 professor=t.professor,
                 vagas=t.vagas,
                 vagas_ocupadas=t.vagas_ocupadas,
+                vagas_reservadas=t.vagas_reservadas,
                 alunos=alunos,
             ))
 

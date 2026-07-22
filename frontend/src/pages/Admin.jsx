@@ -37,6 +37,7 @@ export default function Admin() {
   const [stats, setStats] = useState(null)
   const [periodoAberto, setPeriodoAberto] = useState(false)
   const [alocacaoLiberada, setAlocacaoLiberada] = useState(false)
+  const [escalonamentoLiberado, setEscalonamentoLiberado] = useState(false)
   const [pendentes, setPendentes] = useState([])
   const [loading, setLoading] = useState(true)
   const [acao, setAcao] = useState('') // trava botões durante requests
@@ -51,6 +52,7 @@ export default function Admin() {
   const [mostrarTurmas, setMostrarTurmas] = useState(false)
   const [novaTurma, setNovaTurma] = useState({ numero: '', tipo: 'P', professor: '', horario: '', sala: '', vagas: '' })
   const [editandoVagas, setEditandoVagas] = useState({}) // { turmaId: valor }
+  const [editandoReservadas, setEditandoReservadas] = useState({}) // { turmaId: valor }
 
   // Gerenciamento de admins
   const [admins, setAdmins] = useState([])
@@ -90,6 +92,7 @@ export default function Admin() {
       setStats(statsRes.data)
       setPeriodoAberto(statsRes.data.periodo_aberto)
       setAlocacaoLiberada(statsRes.data.alocacao_liberada)
+      setEscalonamentoLiberado(statsRes.data.escalonamento_liberado)
       setPendentes(pendentesRes.data)
       setDisciplinas(disciplinasRes.data)
       setAdmins(adminsRes.data)
@@ -140,6 +143,24 @@ export default function Admin() {
       setMsg(alocacaoLiberada ? 'Tela de alocação bloqueada pros alunos.' : 'Tela de alocação liberada pros alunos.')
     } catch {
       setErro('Não foi possível alterar a liberação da alocação.')
+    } finally {
+      setAcao('')
+    }
+  }
+
+  async function toggleEscalonamento() {
+    setAcao('escalonamento-tela')
+    setMsg('')
+    try {
+      if (escalonamentoLiberado) {
+        await adminService.bloquearEscalonamento()
+      } else {
+        await adminService.liberarEscalonamento()
+      }
+      await carregarTudo()
+      setMsg(escalonamentoLiberado ? 'Escalonamento bloqueado pros alunos.' : 'Escalonamento liberado pros alunos.')
+    } catch {
+      setErro('Não foi possível alterar a liberação do escalonamento.')
     } finally {
       setAcao('')
     }
@@ -228,6 +249,23 @@ export default function Admin() {
       await recarregarDisciplinas()
     } catch (err) {
       setErro(err.response?.data?.detail || 'Não foi possível atualizar as vagas.')
+    } finally {
+      setAcao('')
+    }
+  }
+
+  async function salvarReservadas(turmaId) {
+    const novoValor = editandoReservadas[turmaId]
+    if (novoValor === undefined || novoValor === '') return
+    setAcao(`reservadas-${turmaId}`)
+    setErro('')
+    try {
+      await turmaService.editar(turmaId, { vagas_reservadas: parseInt(novoValor, 10) })
+      setEditandoReservadas(prev => { const c = { ...prev }; delete c[turmaId]; return c })
+      setMsg('Reserva de vaga atualizada.')
+      await recarregarDisciplinas()
+    } catch (err) {
+      setErro(err.response?.data?.detail || 'Não foi possível reservar a vaga.')
     } finally {
       setAcao('')
     }
@@ -442,6 +480,29 @@ export default function Admin() {
           </button>
         </div>
 
+        {/* Liberação da tela de escalonamento */}
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Tela de escalonamento (classificação geral)</p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {escalonamentoLiberado
+                ? 'Alunos já podem ver a classificação geral por CR.'
+                : 'Alunos veem "Escalonamento em processamento."'}
+            </p>
+          </div>
+          <button
+            onClick={toggleEscalonamento}
+            disabled={acao === 'escalonamento-tela'}
+            className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              escalonamentoLiberado
+                ? 'bg-red-500 text-white hover:bg-red-600'
+                : 'bg-emerald-500 text-white hover:bg-emerald-600'
+            }`}
+          >
+            {acao === 'escalonamento-tela' ? '...' : escalonamentoLiberado ? 'Bloquear tela' : 'Liberar tela'}
+          </button>
+        </div>
+
         {/* Gerenciamento de admins */}
         <div>
           <button
@@ -587,7 +648,7 @@ export default function Admin() {
                       {listaFiltrada.map(a => (
                         <tr key={a.matricula} className={`border-t border-slate-100 ${a.prioridade ? 'bg-orange-50' : ''}`}>
                           <td className="px-3 py-2 text-slate-500">{a.posicao}</td>
-                          <td className="px-2 py-2 text-slate-500">{a.cr.toFixed(3)}</td>
+                          <td className="px-2 py-2 text-slate-500">{a.cr.toFixed(4)}</td>
                           <td className="px-2 py-2 text-slate-500">{a.matricula}</td>
                           <td className="px-2 py-2 font-medium text-slate-800">{a.nome}</td>
                           <td className="px-3 py-2">
@@ -688,6 +749,13 @@ export default function Admin() {
           Ver lista pública de escalonamento (o que os alunos veem) →
         </button>
 
+        <button
+          onClick={() => navigate('/alocacao')}
+          className="-mt-3 self-start text-xs font-medium text-slate-500 hover:text-slate-700"
+        >
+          Ver tela pública de alocação (o que os alunos veem) →
+        </button>
+
         {/* Gerenciamento de turmas */}
         <div>
           <button
@@ -734,30 +802,57 @@ export default function Admin() {
                             </p>
                             <p className="text-slate-500">{t.professor} · {t.horario}{t.sala ? ` · ${t.sala}` : ''}</p>
                             <p className="text-slate-500">{t.vagas_ocupadas}/{t.vagas} vagas ocupadas</p>
+                            {t.vagas_reservadas > 0 && (
+                              <p className="font-medium text-orange-600">
+                                {t.vagas_reservadas} vaga{t.vagas_reservadas !== 1 ? 's' : ''} reservada{t.vagas_reservadas !== 1 ? 's' : ''} para estudante de turma anterior
+                              </p>
+                            )}
                           </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <input
-                              type="number"
-                              min={t.vagas_ocupadas}
-                              placeholder={String(t.vagas)}
-                              value={editandoVagas[t.id] ?? ''}
-                              onChange={e => setEditandoVagas(prev => ({ ...prev, [t.id]: e.target.value }))}
-                              className="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                            />
-                            <button
-                              onClick={() => salvarVagas(t.id)}
-                              disabled={acao === `vagas-${t.id}` || editandoVagas[t.id] === undefined}
-                              className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              Salvar
-                            </button>
-                            <button
-                              onClick={() => excluirTurma(t.id)}
-                              disabled={acao === `excluir-turma-${t.id}`}
-                              className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              Excluir
-                            </button>
+                          <div className="flex shrink-0 flex-col items-end gap-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-400">Vagas</span>
+                              <input
+                                type="number"
+                                min={t.vagas_ocupadas}
+                                placeholder={String(t.vagas)}
+                                value={editandoVagas[t.id] ?? ''}
+                                onChange={e => setEditandoVagas(prev => ({ ...prev, [t.id]: e.target.value }))}
+                                className="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                              />
+                              <button
+                                onClick={() => salvarVagas(t.id)}
+                                disabled={acao === `vagas-${t.id}` || editandoVagas[t.id] === undefined}
+                                className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Salvar
+                              </button>
+                              <button
+                                onClick={() => excluirTurma(t.id)}
+                                disabled={acao === `excluir-turma-${t.id}`}
+                                className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Excluir
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-400">Reservar p/ turma anterior</span>
+                              <input
+                                type="number"
+                                min="0"
+                                max={t.vagas}
+                                placeholder={String(t.vagas_reservadas)}
+                                value={editandoReservadas[t.id] ?? ''}
+                                onChange={e => setEditandoReservadas(prev => ({ ...prev, [t.id]: e.target.value }))}
+                                className="w-16 rounded-lg border border-orange-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                              />
+                              <button
+                                onClick={() => salvarReservadas(t.id)}
+                                disabled={acao === `reservadas-${t.id}` || editandoReservadas[t.id] === undefined}
+                                className="rounded-lg border border-orange-300 bg-orange-50 px-2.5 py-1.5 text-xs font-medium text-orange-700 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Salvar
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -838,10 +933,10 @@ export default function Admin() {
                       <span className="text-xs text-slate-500">{aluno.matricula} · CR</span>
                       <input
                         type="number"
-                        step="0.001"
+                        step="0.0001"
                         min="0"
                         max="10"
-                        placeholder={aluno.cr.toFixed(3)}
+                        placeholder={aluno.cr.toFixed(4)}
                         value={crEditado[aluno.id] ?? ''}
                         onChange={e => setCrEditado(c => ({ ...c, [aluno.id]: e.target.value }))}
                         className="w-20 rounded-lg border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-700 outline-none focus:border-orange-400"

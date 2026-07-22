@@ -7,6 +7,7 @@ from app.schemas import (
     TurmaCreate, TurmaOut, TurmaUpdate,
 )
 from app.routers.admin import get_admin_atual
+from app.alocacao import realocar_turma
 
 router = APIRouter(prefix="/disciplinas", tags=["Disciplinas"])
 
@@ -117,17 +118,33 @@ def editar_turma(
 
     dados = data.model_dump(exclude_unset=True)
 
-    # Reduzir vagas abaixo do que já está ocupado quebraria a contagem
-    if "vagas" in dados and dados["vagas"] < t.vagas_ocupadas:
+    vagas_nova = dados.get("vagas", t.vagas)
+    reservadas_nova = dados.get("vagas_reservadas", t.vagas_reservadas)
+
+    if reservadas_nova > vagas_nova:
         raise HTTPException(
             400,
-            f"Não é possível reduzir vagas para {dados['vagas']}: "
+            f"Não é possível reservar {reservadas_nova} vaga(s) numa turma "
+            f"que só tem {vagas_nova} no total.",
+        )
+
+    vagas_disputa_nova = vagas_nova - reservadas_nova
+    if vagas_disputa_nova < t.vagas_ocupadas:
+        raise HTTPException(
+            400,
+            f"Não é possível deixar só {vagas_disputa_nova} vaga(s) pra disputa: "
             f"já existem {t.vagas_ocupadas} aluno(s) alocado(s) nesta turma.",
         )
 
     for campo, valor in dados.items():
         setattr(t, campo, valor)
     db.commit()
+
+    # Vagas mudaram (total ou reservadas) — reprocessa quem está
+    # concorrendo nessa turma com a capacidade nova.
+    if "vagas" in dados or "vagas_reservadas" in dados:
+        realocar_turma(db, turma_id)
+
     db.refresh(t)
     return t
 
