@@ -103,3 +103,40 @@ def rodar_alocacao(db: Session) -> ResultadoAlocacao:
         em_fila=em_fila,
         detalhes=detalhes,
     )
+
+
+def realocar_turma(db: Session, turma_id: int):
+    """
+    Reprocessa do ZERO só essa turma, toda vez que algo muda nela
+    (inscrição nova, cancelamento, escolha de alternativa) — não só
+    quem está "pendente" dessa vez, TODO MUNDO que já está ligado a
+    essa turma entra na reavaliação.
+
+    Por quê: se só olhasse "pendente", viraria quem chega primeiro leva
+    (o já alocado nunca seria reconsiderado). Reprocessando sempre do
+    zero, um aluno com posição melhor que se inscreve depois PODE
+    desalocar quem já estava alocado — isso é intencional, é assim que
+    o mérito por CR/prioridade fica sempre correto em tempo real, sem
+    precisar esperar o admin apertar um botão.
+    """
+    turma = db.query(Turma).filter(Turma.id == turma_id).first()
+    if not turma:
+        return
+
+    posicoes = mapa_posicoes(db)
+
+    inscricoes = (
+        db.query(Inscricao)
+        .join(Aluno)
+        .filter(Inscricao.turma_id == turma_id, Aluno.validado == True)
+        .all()
+    )
+
+    ordenadas = sorted(inscricoes, key=lambda i: posicoes.get(i.aluno_id, 10**9))
+
+    for idx, insc in enumerate(ordenadas):
+        insc.status = StatusInscricao.alocado if idx < turma.vagas else StatusInscricao.fila
+
+    turma.vagas_ocupadas = min(len(ordenadas), turma.vagas)
+
+    db.commit()

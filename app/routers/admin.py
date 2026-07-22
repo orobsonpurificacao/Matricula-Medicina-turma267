@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.alocacao import rodar_alocacao
+from app.alocacao import rodar_alocacao, realocar_turma
 from app.models import Aluno, Inscricao, StatusInscricao, PeriodoInscricao
 from app.schemas import ResultadoAlocacao, PeriodoOut, EstatisticasOut, AlunoOut, AlunoAdmin, PrioridadeUpdate, SenhaResetada
 from passlib.context import CryptContext
@@ -201,6 +201,19 @@ def definir_prioridade(
         aluno.motivo_prioridade = None
 
     db.commit()
+
+    # Reprocessa na hora as turmas em que esse aluno já está inscrito —
+    # senão a prioridade só valeria a partir da próxima inscrição de
+    # QUALQUER pessoa naquela turma, e não imediatamente.
+    turmas_do_aluno = (
+        db.query(Inscricao.turma_id)
+        .filter(Inscricao.aluno_id == aluno_id)
+        .distinct()
+        .all()
+    )
+    for (turma_id,) in turmas_do_aluno:
+        realocar_turma(db, turma_id)
+
     db.refresh(aluno)
     return aluno
 

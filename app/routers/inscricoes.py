@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.models import Aluno, Turma, Inscricao, StatusInscricao, PeriodoInscricao
 from app.schemas import InscricaoCreate, InscricaoOut, InscricaoAlternativaCreate
+from app.alocacao import realocar_turma
 
 router = APIRouter(prefix="/inscricoes", tags=["Inscrições"])
 
@@ -34,11 +35,17 @@ def inscrever(
     uma disciplina já inscrita SUBSTITUI a anterior — inclusive se ela já
     estava "alocado" — desde que o período de inscrição ainda esteja
     aberto (é essa checagem que impede edição depois que o período fecha).
+
+    A alocação de vaga acontece automaticamente aqui, na hora — não
+    precisa de admin apertar botão. Isso significa que quem já estava
+    "alocado" numa turma pode voltar pra "fila" se alguém com posição
+    melhor se inscrever depois (é assim que o mérito fica sempre certo).
     """
     aluno = _get_aluno(matricula, db)
     _checar_periodo_aberto(db)
 
     resultado = []
+    turmas_afetadas = set()
     for item in inscricoes:
         turma = db.query(Turma).filter(Turma.id == item.turma_id).first()
         if not turma:
@@ -62,12 +69,10 @@ def inscrever(
             continue
 
         if existente:
-            # Troca de turma: libera a vaga da turma antiga se ela já
-            # tinha sido alocada, e joga essa inscrição de volta pra
-            # "pendente" pra entrar na próxima rodada de escalonamento.
-            turma_antiga = db.query(Turma).filter(Turma.id == existente.turma_id).first()
-            if turma_antiga and existente.status == StatusInscricao.alocado:
-                turma_antiga.vagas_ocupadas = max(0, turma_antiga.vagas_ocupadas - 1)
+            # Troca de turma: a realocação automática (chamada logo abaixo)
+            # já vai recalcular vagas_ocupadas das duas turmas do zero —
+            # não precisa mais decrementar na mão aqui.
+            turmas_afetadas.add(existente.turma_id)
 
             existente.turma_id = item.turma_id
             existente.prioridade = item.prioridade
@@ -84,7 +89,15 @@ def inscrever(
             db.add(nova)
             resultado.append(nova)
 
+        turmas_afetadas.add(item.turma_id)
+
     db.commit()
+
+    # Realocação automática: reprocessa cada turma afetada, na hora,
+    # com base na posição de escalonamento de todo mundo inscrito nela.
+    for turma_id in turmas_afetadas:
+        realocar_turma(db, turma_id)
+
     for i in resultado:
         db.refresh(i)
     return resultado
@@ -114,13 +127,13 @@ def cancelar_inscricao(
     if not inscricao:
         raise HTTPException(404, "Inscrição não encontrada")
 
-    if inscricao.status == StatusInscricao.alocado:
-        turma = db.query(Turma).filter(Turma.id == inscricao.turma_id).first()
-        if turma:
-            turma.vagas_ocupadas = max(0, turma.vagas_ocupadas - 1)
-
+    turma_id = inscricao.turma_id
     db.delete(inscricao)
     db.commit()
+
+    # Reprocessa a turma sem essa inscrição — se alguém tava em fila
+    # esperando essa vaga, já sobe pra alocado automaticamente aqui.
+    realocar_turma(db, turma_id)
 
 
 @router.get("/{matricula}", response_model=list[InscricaoOut])
@@ -155,5 +168,8 @@ def escolher_alternativa(
     inscricao.prioridade = 2
     inscricao.status = StatusInscricao.alternativa_pendente
     db.commit()
+
+    realocar_turma(db, data.nova_turma_id)
+
     db.refresh(inscricao)
     return inscricao

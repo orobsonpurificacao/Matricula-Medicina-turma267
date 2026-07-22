@@ -672,8 +672,8 @@ export default function Admin() {
           <div>
             <p className="text-sm font-semibold text-slate-800">Alocação de vagas por CR</p>
             <p className="mt-0.5 text-xs text-slate-500">
-              Usa a ordem de CR (a mesma da lista de escalonamento) pra decidir quem fica com a vaga.
-              Recomendado: feche o período antes de rodar.
+              Já acontece sozinha a cada inscrição, cancelamento ou mudança de prioridade —
+              não precisa apertar isso no dia a dia. Serve só como recálculo manual de segurança.
             </p>
           </div>
           <BotaoPrimario onClick={rodarAlocacao} disabled={acao === 'alocar'} className="whitespace-nowrap">
