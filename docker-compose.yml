@@ -1,8 +1,9 @@
 services:
-  api:
+  matricula267-api:
     build: .
+    container_name: matricula267-api
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8267:8000"
     volumes:
       - ./matricula.db:/app/matricula.db
       - ./uploads:/app/uploads
