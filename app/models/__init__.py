@@ -73,6 +73,25 @@ class Turma(Base):
     vagas_reservadas = Column(Integer, default=0, nullable=False)
     disciplina = relationship("Disciplina", back_populates="turmas")
     inscricoes = relationship("Inscricao", back_populates="turma")
+    reservas = relationship("ReservaVaga", back_populates="turma", cascade="all, delete-orphan")
+
+
+class ReservaVaga(Base):
+    """
+    Vaga reservada pelo admin pra um estudante que NÃO tem cadastro no
+    sistema (ex: repetindo a disciplina, vindo de turma anterior). Não é
+    um Aluno de verdade — só um registro com um texto livre (o que o
+    admin escrever, ex: "Turma 265") e uma posição (1º, 2º, 3º entre as
+    reservas), pra aparecer como linha de verdade na tela de alocação,
+    ocupando a vaga visualmente.
+    """
+    __tablename__ = "reservas_vaga"
+    id = Column(Integer, primary_key=True)
+    turma_id = Column(Integer, ForeignKey("turmas.id"), nullable=False)
+    referencia = Column(String(255), nullable=False)
+    posicao = Column(Integer, nullable=False)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    turma = relationship("Turma", back_populates="reservas")
 
     @property
     def vagas_disponiveis(self):

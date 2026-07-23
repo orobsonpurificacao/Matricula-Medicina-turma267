@@ -14,6 +14,7 @@ class AlunoAlocado(BaseModel):
     nome: str
     posicao_escalonamento: int
     status: StatusInscricao
+    reservada: bool = False
 
 
 class TurmaAlocacao(BaseModel):
@@ -76,14 +77,26 @@ def listar_alocacao(
                 .filter(Inscricao.turma_id == t.id)
                 .all()
             )
-            if not inscricoes:
+            if not inscricoes and not t.reservas:
                 continue
 
             # Mesma ordem usada pra alocar de verdade (prioridade + CR),
             # não CR isolado — assim a tela bate com a decisão real.
             ordenadas = sorted(inscricoes, key=lambda i: posicoes.get(i.aluno_id, 10**9))
 
+            # Reservas aparecem primeiro, na posição que o admin definiu —
+            # ocupam vaga de verdade, não é só uma nota de rodapé.
+            reservas_ordenadas = sorted(t.reservas, key=lambda r: r.posicao)
             alunos = [
+                AlunoAlocado(
+                    matricula=r.referencia,
+                    nome="Vaga reservada aluno turma anterior",
+                    posicao_escalonamento=r.posicao,
+                    status=StatusInscricao.alocado,
+                    reservada=True,
+                )
+                for r in reservas_ordenadas
+            ] + [
                 AlunoAlocado(
                     matricula=i.aluno.matricula,
                     nome=i.aluno.nome,

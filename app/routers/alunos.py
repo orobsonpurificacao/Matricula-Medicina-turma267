@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Aluno
+from app.models import Aluno, Inscricao
 from app.schemas import AlunoOut, AlunoAdmin, RejeitarComprovante, TrocarSenhaInput, AlunoAdminUpdate
 from app.routers.admin import get_admin_atual
+from app.alocacao import realocar_turma
 from passlib.context import CryptContext
 import shutil, os, uuid
 
@@ -92,6 +93,20 @@ def validar_aluno(aluno_id: int, db: Session = Depends(get_db), admin: Aluno = D
     aluno.motivo_recusa = None
     aluno.comprovante_path = None
     db.commit()
+
+    # Reprocessa na hora as turmas em que esse aluno já está inscrito —
+    # antes de validar, ele nunca competia (só quem tem validado=True
+    # entra na disputa). Sem isso, a inscrição dele ficava "pendente"
+    # pra sempre até outra pessoa mexer naquela turma.
+    turmas_do_aluno = (
+        db.query(Inscricao.turma_id)
+        .filter(Inscricao.aluno_id == aluno_id)
+        .distinct()
+        .all()
+    )
+    for (turma_id,) in turmas_do_aluno:
+        realocar_turma(db, turma_id)
+
     db.refresh(aluno)
     return aluno
 
@@ -109,6 +124,19 @@ def rejeitar_aluno(
     aluno.recusado = True
     aluno.motivo_recusa = payload.motivo
     db.commit()
+
+    # Se esse aluno já estava alocado em alguma turma (validado antes,
+    # rejeitado agora por algum motivo), reprocessa pra liberar a vaga —
+    # sem validado=True ele não pode mais ocupar vaga nenhuma.
+    turmas_do_aluno = (
+        db.query(Inscricao.turma_id)
+        .filter(Inscricao.aluno_id == aluno_id)
+        .distinct()
+        .all()
+    )
+    for (turma_id,) in turmas_do_aluno:
+        realocar_turma(db, turma_id)
+
     db.refresh(aluno)
     return aluno
 

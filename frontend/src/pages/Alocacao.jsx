@@ -135,11 +135,6 @@ export default function Alocacao() {
                         </p>
                         <p className="text-xs text-slate-500">
                           {t.professor} · {t.vagas_ocupadas}/{t.vagas} vagas
-                          {t.vagas_reservadas > 0 && (
-                            <span className="ml-1 font-medium text-orange-600">
-                              · {t.vagas_reservadas} reservada{t.vagas_reservadas !== 1 ? "s" : ""} para estudante de turma anterior
-                            </span>
-                          )}
                         </p>
                       </div>
 
@@ -154,11 +149,16 @@ export default function Alocacao() {
                         </thead>
                         <tbody>
                           {t.alunos.map(a => {
-                            const info = STATUS_INFO[a.status] || STATUS_INFO.pendente
-                            const souEu = a.matricula === aluno.matricula
+                            const info = a.reservada
+                              ? { label: "Reservada", cor: "border-orange-200 bg-orange-50 text-orange-700" }
+                              : STATUS_INFO[a.status] || STATUS_INFO.pendente
+                            const souEu = !a.reservada && a.matricula === aluno.matricula
                             return (
-                              <tr key={a.matricula} className={`border-t border-slate-100 ${souEu ? "bg-orange-50" : ""}`}>
-                                <td className="px-4 py-2 font-medium text-slate-800">
+                              <tr
+                                key={`${a.reservada ? "r" : "a"}-${a.matricula}-${a.posicao_escalonamento}`}
+                                className={`border-t border-slate-100 ${souEu ? "bg-orange-50" : ""} ${a.reservada ? "bg-slate-50" : ""}`}
+                              >
+                                <td className={`px-4 py-2 font-medium ${a.reservada ? "italic text-slate-500" : "text-slate-800"}`}>
                                   {a.nome}
                                   {souEu && <span className="ml-1.5 text-orange-600">(você)</span>}
                                 </td>

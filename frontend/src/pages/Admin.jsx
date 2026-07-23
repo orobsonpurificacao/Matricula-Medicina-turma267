@@ -52,7 +52,7 @@ export default function Admin() {
   const [mostrarTurmas, setMostrarTurmas] = useState(false)
   const [novaTurma, setNovaTurma] = useState({ numero: '', tipo: 'P', professor: '', horario: '', sala: '', vagas: '' })
   const [editandoVagas, setEditandoVagas] = useState({}) // { turmaId: valor }
-  const [editandoReservadas, setEditandoReservadas] = useState({}) // { turmaId: valor }
+  const [novaReserva, setNovaReserva] = useState({}) // { turmaId: { referencia, posicao } }
 
   // Gerenciamento de admins
   const [admins, setAdmins] = useState([])
@@ -254,18 +254,32 @@ export default function Admin() {
     }
   }
 
-  async function salvarReservadas(turmaId) {
-    const novoValor = editandoReservadas[turmaId]
-    if (novoValor === undefined || novoValor === '') return
-    setAcao(`reservadas-${turmaId}`)
+  async function adicionarReserva(turmaId) {
+    const dados = novaReserva[turmaId]
+    if (!dados?.referencia?.trim() || !dados?.posicao) return
+    setAcao(`reserva-add-${turmaId}`)
     setErro('')
     try {
-      await turmaService.editar(turmaId, { vagas_reservadas: parseInt(novoValor, 10) })
-      setEditandoReservadas(prev => { const c = { ...prev }; delete c[turmaId]; return c })
-      setMsg('Reserva de vaga atualizada.')
+      await turmaService.criarReserva(turmaId, dados.referencia.trim(), parseInt(dados.posicao, 10))
+      setNovaReserva(prev => { const c = { ...prev }; delete c[turmaId]; return c })
+      setMsg('Vaga reservada.')
       await recarregarDisciplinas()
     } catch (err) {
       setErro(err.response?.data?.detail || 'Não foi possível reservar a vaga.')
+    } finally {
+      setAcao('')
+    }
+  }
+
+  async function removerReserva(turmaId, reservaId) {
+    setAcao(`reserva-del-${reservaId}`)
+    setErro('')
+    try {
+      await turmaService.excluirReserva(turmaId, reservaId)
+      setMsg('Reserva removida.')
+      await recarregarDisciplinas()
+    } catch (err) {
+      setErro(err.response?.data?.detail || 'Não foi possível remover a reserva.')
     } finally {
       setAcao('')
     }
@@ -795,21 +809,16 @@ export default function Admin() {
                         <p className="py-2 text-xs text-slate-400">Nenhuma turma cadastrada ainda.</p>
                       )}
                       {disc.turmas.map(t => (
-                        <div key={t.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                          <div className="min-w-0 text-xs text-slate-600">
-                            <p className="text-sm font-medium text-slate-800">
-                              Turma {t.numero} ({t.tipo === 'P' ? 'Prática' : 'Teórica'})
-                            </p>
-                            <p className="text-slate-500">{t.professor} · {t.horario}{t.sala ? ` · ${t.sala}` : ''}</p>
-                            <p className="text-slate-500">{t.vagas_ocupadas}/{t.vagas} vagas ocupadas</p>
-                            {t.vagas_reservadas > 0 && (
-                              <p className="font-medium text-orange-600">
-                                {t.vagas_reservadas} vaga{t.vagas_reservadas !== 1 ? 's' : ''} reservada{t.vagas_reservadas !== 1 ? 's' : ''} para estudante de turma anterior
+                        <div key={t.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0 text-xs text-slate-600">
+                              <p className="text-sm font-medium text-slate-800">
+                                Turma {t.numero} ({t.tipo === 'P' ? 'Prática' : 'Teórica'})
                               </p>
-                            )}
-                          </div>
-                          <div className="flex shrink-0 flex-col items-end gap-1.5">
-                            <div className="flex items-center gap-2">
+                              <p className="text-slate-500">{t.professor} · {t.horario}{t.sala ? ` · ${t.sala}` : ''}</p>
+                              <p className="text-slate-500">{t.vagas_ocupadas}/{t.vagas} vagas ocupadas</p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
                               <span className="text-[10px] text-slate-400">Vagas</span>
                               <input
                                 type="number"
@@ -834,23 +843,52 @@ export default function Admin() {
                                 Excluir
                               </button>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-slate-400">Reservar p/ turma anterior</span>
+                          </div>
+
+                          {/* Vagas reservadas pra estudante de turma anterior */}
+                          <div className="border-t border-slate-200 pt-2">
+                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                              Vaga reservada (estudante de turma anterior, sem cadastro)
+                            </p>
+                            {t.reservas.length > 0 && (
+                              <div className="mb-2 flex flex-col gap-1">
+                                {[...t.reservas].sort((a, b) => a.posicao - b.posicao).map(r => (
+                                  <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5">
+                                    <span className="text-xs text-orange-700">
+                                      {r.posicao}º — {r.referencia}
+                                    </span>
+                                    <button
+                                      onClick={() => removerReserva(t.id, r.id)}
+                                      disabled={acao === `reserva-del-${r.id}`}
+                                      className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-40"
+                                    >
+                                      Remover
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                placeholder="Ex: Turma 265"
+                                value={novaReserva[t.id]?.referencia ?? ''}
+                                onChange={e => setNovaReserva(prev => ({ ...prev, [t.id]: { ...prev[t.id], referencia: e.target.value } }))}
+                                className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                              />
                               <input
                                 type="number"
-                                min="0"
-                                max={t.vagas}
-                                placeholder={String(t.vagas_reservadas)}
-                                value={editandoReservadas[t.id] ?? ''}
-                                onChange={e => setEditandoReservadas(prev => ({ ...prev, [t.id]: e.target.value }))}
-                                className="w-16 rounded-lg border border-orange-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                                min="1"
+                                placeholder="Posição"
+                                value={novaReserva[t.id]?.posicao ?? ''}
+                                onChange={e => setNovaReserva(prev => ({ ...prev, [t.id]: { ...prev[t.id], posicao: e.target.value } }))}
+                                className="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
                               />
                               <button
-                                onClick={() => salvarReservadas(t.id)}
-                                disabled={acao === `reservadas-${t.id}` || editandoReservadas[t.id] === undefined}
-                                className="rounded-lg border border-orange-300 bg-orange-50 px-2.5 py-1.5 text-xs font-medium text-orange-700 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40"
+                                onClick={() => adicionarReserva(t.id)}
+                                disabled={acao === `reserva-add-${t.id}`}
+                                className="shrink-0 rounded-lg border border-orange-300 bg-orange-50 px-2.5 py-1.5 text-xs font-medium text-orange-700 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40"
                               >
-                                Salvar
+                                Reservar
                               </button>
                             </div>
                           </div>

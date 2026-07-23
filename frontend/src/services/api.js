@@ -48,6 +48,10 @@ export const turmaService = {
   criar: (data) => api.post("/disciplinas/admin/turmas", data),
   editar: (id, data) => api.patch(`/disciplinas/admin/turmas/${id}`, data),
   excluir: (id) => api.delete(`/disciplinas/admin/turmas/${id}`),
+  criarReserva: (turmaId, referencia, posicao) =>
+    api.post(`/disciplinas/admin/turmas/${turmaId}/reservas`, { referencia, posicao }),
+  excluirReserva: (turmaId, reservaId) =>
+    api.delete(`/disciplinas/admin/turmas/${turmaId}/reservas/${reservaId}`),
 }
 
 export const inscricaoService = {
