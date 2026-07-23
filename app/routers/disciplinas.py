@@ -167,13 +167,10 @@ def criar_reserva(
     if qtd_reservas_atual + 1 > t.vagas:
         raise HTTPException(400, "Não sobra vaga nessa turma pra mais uma reserva.")
 
-    vagas_disputa_nova = t.vagas - (qtd_reservas_atual + 1)
-    if vagas_disputa_nova < t.vagas_ocupadas:
-        raise HTTPException(
-            400,
-            f"Reservar mais essa vaga deixaria só {vagas_disputa_nova} pra disputa, "
-            f"mas já existem {t.vagas_ocupadas} aluno(s) alocado(s).",
-        )
+    # A reserva tem prioridade sobre quem já está alocado — não bloqueia
+    # mesmo que a turma já esteja cheia de aluno real. O realocar_turma
+    # (chamado logo abaixo) reprocessa tudo do zero e derruba pra fila
+    # quem tiver posição pior, se precisar abrir espaço pra reserva.
 
     reserva = ReservaVaga(turma_id=turma_id, referencia=data.referencia, posicao=data.posicao)
     db.add(reserva)
