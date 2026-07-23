@@ -134,7 +134,7 @@ export default function Alocacao() {
                           Turma {t.numero} ({t.tipo === "P" ? "Prática" : "Teórica"}) — {t.horario}
                         </p>
                         <p className="text-xs text-slate-500">
-                          {t.professor} · {t.vagas_ocupadas}/{t.vagas} vagas
+                          {t.professor} · {t.vagas_ocupadas + t.vagas_reservadas}/{t.vagas} vagas
                         </p>
                       </div>
 

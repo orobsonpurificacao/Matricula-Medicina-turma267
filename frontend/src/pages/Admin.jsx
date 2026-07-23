@@ -868,7 +868,7 @@ export default function Admin() {
                                 Turma {t.numero} ({t.tipo === 'P' ? 'Prática' : 'Teórica'})
                               </p>
                               <p className="text-slate-500">{t.professor} · {t.horario}{t.sala ? ` · ${t.sala}` : ''}</p>
-                              <p className="text-slate-500">{t.vagas_ocupadas}/{t.vagas} vagas ocupadas</p>
+                              <p className="text-slate-500">{t.vagas_ocupadas + t.vagas_reservadas}/{t.vagas} vagas ocupadas</p>
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
                               <span className="text-[10px] text-slate-400">Vagas</span>
