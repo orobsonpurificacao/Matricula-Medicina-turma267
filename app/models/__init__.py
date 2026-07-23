@@ -28,6 +28,8 @@ class Aluno(Base):
     validado = Column(Boolean, default=False)
     recusado = Column(Boolean, default=False)
     motivo_recusa = Column(String(255), nullable=True)
+    validado_por = Column(String(150), nullable=True)
+    validado_em = Column(DateTime, nullable=True)
     is_admin = Column(Boolean, default=False, nullable=False)
     prioridade = Column(Boolean, default=False, nullable=False)
     ordem_prioridade = Column(Integer, nullable=True)

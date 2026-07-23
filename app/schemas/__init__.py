@@ -31,6 +31,8 @@ class AlunoAdmin(AlunoOut):
     prioridade: bool = False
     ordem_prioridade: Optional[int] = None
     motivo_prioridade: Optional[str] = None
+    validado_por: Optional[str] = None
+    validado_em: Optional[datetime] = None
 
 
 class PrioridadeUpdate(BaseModel):
@@ -74,6 +76,18 @@ class EstatisticasOut(BaseModel):
     escalonamento_liberado: bool
 
 
+class ReservaVagaOut(BaseModel):
+    id: int
+    referencia: str
+    posicao: int
+    model_config = {"from_attributes": True}
+
+
+class ReservaVagaCreate(BaseModel):
+    referencia: str
+    posicao: int
+
+
 class TurmaOut(BaseModel):
     id: int
     numero: str
@@ -84,6 +98,7 @@ class TurmaOut(BaseModel):
     vagas: int
     vagas_ocupadas: int
     vagas_reservadas: int
+    reservas: List[ReservaVagaOut] = []
     model_config = {"from_attributes": True}
 
 

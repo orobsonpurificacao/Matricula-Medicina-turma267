@@ -42,6 +42,8 @@ def _migrar_colunas_novas():
             "prioridade": "BOOLEAN NOT NULL DEFAULT 0",
             "motivo_prioridade": "VARCHAR(255)",
             "ordem_prioridade": "INTEGER",
+            "validado_por": "VARCHAR(150)",
+            "validado_em": "DATETIME",
         },
         "periodo_inscricao": {
             "alocacao_liberada": "BOOLEAN NOT NULL DEFAULT 0",

@@ -7,6 +7,7 @@ from app.routers.admin import get_admin_atual
 from app.alocacao import realocar_turma
 from passlib.context import CryptContext
 import shutil, os, uuid
+from datetime import datetime
 
 router = APIRouter(prefix="/alunos", tags=["Alunos"])
 UPLOAD_DIR = "uploads"
@@ -77,7 +78,7 @@ def listar_pendentes(db: Session = Depends(get_db), admin: Aluno = Depends(get_a
 def listar_todos(db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
     return db.query(Aluno).all()
 
-@router.patch("/admin/{aluno_id}/validar", response_model=AlunoOut)
+@router.patch("/admin/{aluno_id}/validar", response_model=AlunoAdmin)
 def validar_aluno(aluno_id: int, db: Session = Depends(get_db), admin: Aluno = Depends(get_admin_atual)):
     aluno = db.query(Aluno).filter(Aluno.id == aluno_id).first()
     if not aluno:
@@ -91,6 +92,8 @@ def validar_aluno(aluno_id: int, db: Session = Depends(get_db), admin: Aluno = D
     aluno.validado = True
     aluno.recusado = False
     aluno.motivo_recusa = None
+    aluno.validado_por = admin.nome
+    aluno.validado_em = datetime.utcnow()
     aluno.comprovante_path = None
     db.commit()
 
@@ -110,7 +113,7 @@ def validar_aluno(aluno_id: int, db: Session = Depends(get_db), admin: Aluno = D
     db.refresh(aluno)
     return aluno
 
-@router.patch("/admin/{aluno_id}/rejeitar", response_model=AlunoOut)
+@router.patch("/admin/{aluno_id}/rejeitar", response_model=AlunoAdmin)
 def rejeitar_aluno(
     aluno_id: int,
     payload: RejeitarComprovante,
@@ -123,6 +126,8 @@ def rejeitar_aluno(
     aluno.validado = False
     aluno.recusado = True
     aluno.motivo_recusa = payload.motivo
+    aluno.validado_por = admin.nome
+    aluno.validado_em = datetime.utcnow()
     db.commit()
 
     # Se esse aluno já estava alocado em alguma turma (validado antes,
