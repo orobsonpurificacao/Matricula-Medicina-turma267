@@ -196,6 +196,15 @@ def editar_aluno(
         if email_em_uso:
             raise HTTPException(400, "Email já está em uso por outro aluno")
 
+    if "matricula" in dados and dados["matricula"] is not None:
+        matricula_em_uso = (
+            db.query(Aluno)
+            .filter(Aluno.matricula == dados["matricula"], Aluno.id != aluno_id)
+            .first()
+        )
+        if matricula_em_uso:
+            raise HTTPException(400, "Matrícula já está em uso por outro aluno")
+
     for campo, valor in dados.items():
         if valor is not None:
             setattr(aluno, campo, valor)

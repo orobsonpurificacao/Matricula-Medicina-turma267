@@ -20,6 +20,7 @@ class AlunoOut(BaseModel):
 
 class AlunoAdminUpdate(BaseModel):
     nome: Optional[str] = None
+    matricula: Optional[str] = None
     email: Optional[str] = None
     cr: Optional[float] = None
 
@@ -73,18 +74,6 @@ class EstatisticasOut(BaseModel):
     escalonamento_liberado: bool
 
 
-class ReservaVagaOut(BaseModel):
-    id: int
-    referencia: str
-    posicao: int
-    model_config = {"from_attributes": True}
-
-
-class ReservaVagaCreate(BaseModel):
-    referencia: str
-    posicao: int
-
-
 class TurmaOut(BaseModel):
     id: int
     numero: str
@@ -95,7 +84,6 @@ class TurmaOut(BaseModel):
     vagas: int
     vagas_ocupadas: int
     vagas_reservadas: int
-    reservas: List[ReservaVagaOut] = []
     model_config = {"from_attributes": True}
 
 
@@ -135,6 +123,7 @@ class TurmaUpdate(BaseModel):
     horario: Optional[str] = None
     sala: Optional[str] = None
     vagas: Optional[int] = None
+    vagas_reservadas: Optional[int] = None
 
 
 class DisciplinaUpdate(BaseModel):

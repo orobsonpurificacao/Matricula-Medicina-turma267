@@ -52,7 +52,7 @@ export default function Admin() {
   const [mostrarTurmas, setMostrarTurmas] = useState(false)
   const [novaTurma, setNovaTurma] = useState({ numero: '', tipo: 'P', professor: '', horario: '', sala: '', vagas: '' })
   const [editandoVagas, setEditandoVagas] = useState({}) // { turmaId: valor }
-  const [novaReserva, setNovaReserva] = useState({}) // { turmaId: { referencia, posicao } }
+  const [editandoReservadas, setEditandoReservadas] = useState({}) // { turmaId: valor }
 
   // Gerenciamento de admins
   const [admins, setAdmins] = useState([])
@@ -73,6 +73,10 @@ export default function Admin() {
 
   // Reset de senha
   const [senhaResetada, setSenhaResetada] = useState(null) // { nome, matricula, senha_temporaria }
+
+  // Edição de cadastro (nome, matrícula, email, CR)
+  const [editandoAluno, setEditandoAluno] = useState(null) // { id, nome, matricula, email, cr }
+  const [erroEditarAluno, setErroEditarAluno] = useState('')
   const [matriculaPromover, setMatriculaPromover] = useState('')
   const [erroPromover, setErroPromover] = useState('')
 
@@ -254,32 +258,18 @@ export default function Admin() {
     }
   }
 
-  async function adicionarReserva(turmaId) {
-    const dados = novaReserva[turmaId]
-    if (!dados?.referencia?.trim() || !dados?.posicao) return
-    setAcao(`reserva-add-${turmaId}`)
+  async function salvarReservadas(turmaId) {
+    const novoValor = editandoReservadas[turmaId]
+    if (novoValor === undefined || novoValor === '') return
+    setAcao(`reservadas-${turmaId}`)
     setErro('')
     try {
-      await turmaService.criarReserva(turmaId, dados.referencia.trim(), parseInt(dados.posicao, 10))
-      setNovaReserva(prev => { const c = { ...prev }; delete c[turmaId]; return c })
-      setMsg('Vaga reservada.')
+      await turmaService.editar(turmaId, { vagas_reservadas: parseInt(novoValor, 10) })
+      setEditandoReservadas(prev => { const c = { ...prev }; delete c[turmaId]; return c })
+      setMsg('Reserva de vaga atualizada.')
       await recarregarDisciplinas()
     } catch (err) {
       setErro(err.response?.data?.detail || 'Não foi possível reservar a vaga.')
-    } finally {
-      setAcao('')
-    }
-  }
-
-  async function removerReserva(turmaId, reservaId) {
-    setAcao(`reserva-del-${reservaId}`)
-    setErro('')
-    try {
-      await turmaService.excluirReserva(turmaId, reservaId)
-      setMsg('Reserva removida.')
-      await recarregarDisciplinas()
-    } catch (err) {
-      setErro(err.response?.data?.detail || 'Não foi possível remover a reserva.')
     } finally {
       setAcao('')
     }
@@ -316,6 +306,27 @@ export default function Admin() {
       } else {
         setErroPromover('Não foi possível promover.')
       }
+    } finally {
+      setAcao('')
+    }
+  }
+
+  async function salvarEdicaoAluno(e) {
+    e.preventDefault()
+    setErroEditarAluno('')
+    setAcao(`editar-${editandoAluno.id}`)
+    try {
+      await adminService.editarAluno(editandoAluno.id, {
+        nome: editandoAluno.nome,
+        matricula: editandoAluno.matricula,
+        email: editandoAluno.email,
+        cr: parseFloat(editandoAluno.cr),
+      })
+      setMsg('Cadastro atualizado.')
+      setEditandoAluno(null)
+      await carregarTudo()
+    } catch (err) {
+      setErroEditarAluno(err.response?.data?.detail || 'Não foi possível salvar.')
     } finally {
       setAcao('')
     }
@@ -576,7 +587,7 @@ export default function Admin() {
           {mostrarPrioridade && (() => {
             const escalonamentoComId = escalonamentoCompleto.map(item => {
               const aluno = todosAlunos.find(a => a.matricula === item.matricula)
-              return { ...item, id: aluno?.id, prioridade: aluno?.prioridade || false }
+              return { ...item, id: aluno?.id, prioridade: aluno?.prioridade || false, email: aluno?.email }
             })
             const filtroLower = filtroPrioridade.trim().toLowerCase()
             const listaFiltrada = filtroLower
@@ -664,7 +675,19 @@ export default function Admin() {
                           <td className="px-3 py-2 text-slate-500">{a.posicao}</td>
                           <td className="px-2 py-2 text-slate-500">{a.cr.toFixed(4)}</td>
                           <td className="px-2 py-2 text-slate-500">{a.matricula}</td>
-                          <td className="px-2 py-2 font-medium text-slate-800">{a.nome}</td>
+                          <td className="px-2 py-2 font-medium text-slate-800">
+                            <div className="flex items-center gap-1.5">
+                              <span>{a.nome}</span>
+                              {a.id && (
+                                <button
+                                  onClick={() => setEditandoAluno({ id: a.id, nome: a.nome, matricula: a.matricula, email: a.email || '', cr: a.cr })}
+                                  className="shrink-0 text-[10px] font-medium text-slate-400 underline hover:text-slate-600"
+                                >
+                                  editar
+                                </button>
+                              )}
+                            </div>
+                          </td>
                           <td className="px-3 py-2">
                             {!a.prioridade && a.id && (
                               <input
@@ -809,16 +832,21 @@ export default function Admin() {
                         <p className="py-2 text-xs text-slate-400">Nenhuma turma cadastrada ainda.</p>
                       )}
                       {disc.turmas.map(t => (
-                        <div key={t.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0 text-xs text-slate-600">
-                              <p className="text-sm font-medium text-slate-800">
-                                Turma {t.numero} ({t.tipo === 'P' ? 'Prática' : 'Teórica'})
+                        <div key={t.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <div className="min-w-0 text-xs text-slate-600">
+                            <p className="text-sm font-medium text-slate-800">
+                              Turma {t.numero} ({t.tipo === 'P' ? 'Prática' : 'Teórica'})
+                            </p>
+                            <p className="text-slate-500">{t.professor} · {t.horario}{t.sala ? ` · ${t.sala}` : ''}</p>
+                            <p className="text-slate-500">{t.vagas_ocupadas}/{t.vagas} vagas ocupadas</p>
+                            {t.vagas_reservadas > 0 && (
+                              <p className="font-medium text-orange-600">
+                                {t.vagas_reservadas} vaga{t.vagas_reservadas !== 1 ? 's' : ''} reservada{t.vagas_reservadas !== 1 ? 's' : ''} para estudante de turma anterior
                               </p>
-                              <p className="text-slate-500">{t.professor} · {t.horario}{t.sala ? ` · ${t.sala}` : ''}</p>
-                              <p className="text-slate-500">{t.vagas_ocupadas}/{t.vagas} vagas ocupadas</p>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-2">
+                            )}
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-1.5">
+                            <div className="flex items-center gap-2">
                               <span className="text-[10px] text-slate-400">Vagas</span>
                               <input
                                 type="number"
@@ -843,52 +871,23 @@ export default function Admin() {
                                 Excluir
                               </button>
                             </div>
-                          </div>
-
-                          {/* Vagas reservadas pra estudante de turma anterior */}
-                          <div className="border-t border-slate-200 pt-2">
-                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                              Vaga reservada (estudante de turma anterior, sem cadastro)
-                            </p>
-                            {t.reservas.length > 0 && (
-                              <div className="mb-2 flex flex-col gap-1">
-                                {[...t.reservas].sort((a, b) => a.posicao - b.posicao).map(r => (
-                                  <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5">
-                                    <span className="text-xs text-orange-700">
-                                      {r.posicao}º — {r.referencia}
-                                    </span>
-                                    <button
-                                      onClick={() => removerReserva(t.id, r.id)}
-                                      disabled={acao === `reserva-del-${r.id}`}
-                                      className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-40"
-                                    >
-                                      Remover
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            <div className="flex items-center gap-1.5">
-                              <input
-                                placeholder="Ex: Turma 265"
-                                value={novaReserva[t.id]?.referencia ?? ''}
-                                onChange={e => setNovaReserva(prev => ({ ...prev, [t.id]: { ...prev[t.id], referencia: e.target.value } }))}
-                                className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                              />
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-400">Reservar p/ turma anterior</span>
                               <input
                                 type="number"
-                                min="1"
-                                placeholder="Posição"
-                                value={novaReserva[t.id]?.posicao ?? ''}
-                                onChange={e => setNovaReserva(prev => ({ ...prev, [t.id]: { ...prev[t.id], posicao: e.target.value } }))}
-                                className="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                                min="0"
+                                max={t.vagas}
+                                placeholder={String(t.vagas_reservadas)}
+                                value={editandoReservadas[t.id] ?? ''}
+                                onChange={e => setEditandoReservadas(prev => ({ ...prev, [t.id]: e.target.value }))}
+                                className="w-16 rounded-lg border border-orange-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
                               />
                               <button
-                                onClick={() => adicionarReserva(t.id)}
-                                disabled={acao === `reserva-add-${t.id}`}
-                                className="shrink-0 rounded-lg border border-orange-300 bg-orange-50 px-2.5 py-1.5 text-xs font-medium text-orange-700 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40"
+                                onClick={() => salvarReservadas(t.id)}
+                                disabled={acao === `reservadas-${t.id}` || editandoReservadas[t.id] === undefined}
+                                className="rounded-lg border border-orange-300 bg-orange-50 px-2.5 py-1.5 text-xs font-medium text-orange-700 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40"
                               >
-                                Reservar
+                                Salvar
                               </button>
                             </div>
                           </div>
@@ -1021,6 +1020,84 @@ export default function Admin() {
           )}
         </div>
       </div>
+
+      {/* Modal de edição de cadastro */}
+      {editandoAluno && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-6">
+          <form
+            onSubmit={salvarEdicaoAluno}
+            className="flex w-full max-w-sm flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
+          >
+            <p className="text-sm font-semibold text-slate-800">Editar cadastro</p>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">Nome</label>
+              <input
+                value={editandoAluno.nome}
+                onChange={e => setEditandoAluno(a => ({ ...a, nome: e.target.value }))}
+                required
+                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">Matrícula</label>
+              <input
+                value={editandoAluno.matricula}
+                onChange={e => setEditandoAluno(a => ({ ...a, matricula: e.target.value }))}
+                required
+                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
+              />
+              <p className="mt-1 text-[10px] text-slate-400">
+                Mudar a matrícula desconecta a sessão atual do aluno — ele precisa logar de novo.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">E-mail</label>
+              <input
+                type="email"
+                value={editandoAluno.email}
+                onChange={e => setEditandoAluno(a => ({ ...a, email: e.target.value }))}
+                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">CR</label>
+              <input
+                type="number"
+                step="0.0001"
+                min="0"
+                max="10"
+                value={editandoAluno.cr}
+                onChange={e => setEditandoAluno(a => ({ ...a, cr: e.target.value }))}
+                required
+                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
+              />
+            </div>
+
+            {erroEditarAluno && <p className="text-xs text-red-600">{erroEditarAluno}</p>}
+
+            <div className="mt-1 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditandoAluno(null)}
+                className="px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-700"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={acao === `editar-${editandoAluno.id}`}
+                className="rounded-xl bg-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {acao === `editar-${editandoAluno.id}` ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Modal de senha resetada */}
       {senhaResetada && (
