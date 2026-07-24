@@ -320,6 +320,11 @@ export default function Disciplinas() {
                               <div className="h-9 w-1 shrink-0 rounded-full" style={{ background: cor }} />
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-medium text-slate-800">{d.nome}</p>
+                                {d.pre_requisitos && (
+                                  <p className="truncate text-[11px] text-slate-500">
+                                    Pré-requisitos: {d.pre_requisitos}
+                                  </p>
+                                )}
                                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                                   <span className="text-xs text-slate-500">{d.codigo}</span>
                                   {turmaPraticaEscolhida ? (

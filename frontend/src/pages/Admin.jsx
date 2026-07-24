@@ -790,7 +790,7 @@ export default function Admin() {
             <Stat label="Comprovantes validados" value={stats.comprovantes_validados} />
             <Stat label="Comprovantes recusados" value={stats.comprovantes_recusados} />
             <Stat label="Inscrições alocadas" value={stats.inscricoes_alocadas} />
-            <Stat label="Em fila" value={stats.inscricoes_em_fila} />
+            <Stat label="Não alocados" value={stats.inscricoes_em_fila} />
           </div>
         </div>
 

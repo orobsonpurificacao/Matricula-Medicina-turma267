@@ -5,7 +5,7 @@ import { alocacaoService } from "../services/api"
 const STATUS_INFO = {
   pendente: { label: "Pendente", cor: "border-slate-200 bg-slate-50 text-slate-600" },
   alocado: { label: "Alocado", cor: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-  fila: { label: "Fila", cor: "border-amber-200 bg-amber-50 text-amber-700" },
+  fila: { label: "Não alocado", cor: "border-amber-200 bg-amber-50 text-amber-700" },
   alternativa_pendente: { label: "Alternativa", cor: "border-amber-200 bg-amber-50 text-amber-700" },
 }
 
@@ -17,6 +17,11 @@ export default function Alocacao() {
   const [bloqueado, setBloqueado] = useState(false)
   const [erro, setErro] = useState("")
   const [semestreAtivo, setSemestreAtivo] = useState(null)
+  const [disciplinasAbertas, setDisciplinasAbertas] = useState({})
+
+  function toggleDisciplina(id) {
+    setDisciplinasAbertas(a => ({ ...a, [id]: !a[id] }))
+  }
 
   useEffect(() => {
     alocacaoService.listar()
@@ -119,66 +124,84 @@ export default function Alocacao() {
             Nenhuma inscrição nesse semestre ainda.
           </p>
         ) : (
-          <div className="flex flex-col gap-5">
-            {disciplinasDoSemestre.map(d => (
-              <div key={d.disciplina_id}>
-                <p className="mb-2 text-sm font-semibold text-slate-800">
-                  {d.nome} <span className="font-normal text-slate-400">· {d.codigo}</span>
-                </p>
-
-                <div className="flex flex-col gap-3">
-                  {d.turmas.map(t => (
-                    <div key={t.turma_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
-                        <p className="text-xs font-medium text-slate-600">
-                          Turma {t.numero} ({t.tipo === "P" ? "Prática" : "Teórica"}) — {t.horario}
+          <div className="flex flex-col gap-3">
+            {disciplinasDoSemestre.map(d => {
+              const aberta = !!disciplinasAbertas[d.disciplina_id]
+              return (
+                <div key={d.disciplina_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <div
+                    onClick={() => toggleDisciplina(d.disciplina_id)}
+                    className="flex cursor-pointer items-center justify-between gap-2 p-3 hover:bg-slate-50"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-slate-800">
+                        {d.nome} <span className="font-normal text-slate-400">· {d.codigo}</span>
+                      </p>
+                      {d.pre_requisitos && (
+                        <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                          Pré-requisitos: {d.pre_requisitos}
                         </p>
-                        <p className="text-xs text-slate-500">
-                          {t.professor} · {t.vagas_ocupadas + t.vagas_reservadas}/{t.vagas} vagas
-                        </p>
-                      </div>
-
-                      <table className="w-full text-left text-xs">
-                        <thead>
-                          <tr className="text-slate-400">
-                            <th className="px-4 py-2 font-medium">Aluno</th>
-                            <th className="px-2 py-2 font-medium">Matrícula</th>
-                            <th className="px-2 py-2 font-medium">Posição</th>
-                            <th className="px-4 py-2 text-right font-medium">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {t.alunos.map(a => {
-                            const info = a.reservada
-                              ? { label: "Reservada", cor: "border-orange-200 bg-orange-50 text-orange-700" }
-                              : STATUS_INFO[a.status] || STATUS_INFO.pendente
-                            const souEu = !a.reservada && a.matricula === aluno.matricula
-                            return (
-                              <tr
-                                key={`${a.reservada ? "r" : "a"}-${a.matricula}-${a.posicao_escalonamento}`}
-                                className={`border-t border-slate-100 ${souEu ? "bg-orange-50" : ""} ${a.reservada ? "bg-slate-50" : ""}`}
-                              >
-                                <td className={`px-4 py-2 font-medium ${a.reservada ? "italic text-slate-500" : "text-slate-800"}`}>
-                                  {a.nome}
-                                  {souEu && <span className="ml-1.5 text-orange-600">(você)</span>}
-                                </td>
-                                <td className="px-2 py-2 text-slate-500">{a.matricula}</td>
-                                <td className="px-2 py-2 text-slate-500">{a.posicao_escalonamento}º</td>
-                                <td className="px-4 py-2 text-right">
-                                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${info.cor}`}>
-                                    {info.label}
-                                  </span>
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
+                      )}
                     </div>
-                  ))}
+                    <span className={`shrink-0 text-sm text-slate-400 transition-transform ${aberta ? "rotate-180" : ""}`}>▾</span>
+                  </div>
+
+                  {aberta && (
+                    <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 p-3">
+                      {d.turmas.map(t => (
+                        <div key={t.turma_id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
+                            <p className="text-xs font-medium text-slate-600">
+                              Turma {t.numero} ({t.tipo === "P" ? "Prática" : "Teórica"}) — {t.horario}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {t.professor} · {t.vagas_ocupadas + t.vagas_reservadas}/{t.vagas} vagas
+                            </p>
+                          </div>
+
+                          <table className="w-full text-left text-xs">
+                            <thead>
+                              <tr className="text-slate-400">
+                                <th className="px-4 py-2 font-medium">Aluno</th>
+                                <th className="px-2 py-2 font-medium">Matrícula</th>
+                                <th className="px-2 py-2 font-medium">Posição</th>
+                                <th className="px-4 py-2 text-right font-medium">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {t.alunos.map(a => {
+                                const info = a.reservada
+                                  ? { label: "Reservada", cor: "border-orange-200 bg-orange-50 text-orange-700" }
+                                  : STATUS_INFO[a.status] || STATUS_INFO.pendente
+                                const souEu = !a.reservada && a.matricula === aluno.matricula
+                                return (
+                                  <tr
+                                    key={`${a.reservada ? "r" : "a"}-${a.matricula}-${a.posicao_escalonamento}`}
+                                    className={`border-t border-slate-100 ${souEu ? "bg-orange-50" : ""} ${a.reservada ? "bg-slate-50" : ""}`}
+                                  >
+                                    <td className={`px-4 py-2 font-medium ${a.reservada ? "italic text-slate-500" : "text-slate-800"}`}>
+                                      {a.nome}
+                                      {souEu && <span className="ml-1.5 text-orange-600">(você)</span>}
+                                    </td>
+                                    <td className="px-2 py-2 text-slate-500">{a.matricula}</td>
+                                    <td className="px-2 py-2 text-slate-500">{a.posicao_escalonamento}º</td>
+                                    <td className="px-4 py-2 text-right">
+                                      <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${info.cor}`}>
+                                        {info.label}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

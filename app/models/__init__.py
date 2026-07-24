@@ -58,6 +58,7 @@ class Disciplina(Base):
     semestre = Column(Integer, nullable=False, default=0)
     creditos = Column(Integer, nullable=False, default=0)
     descricao = Column(Text, nullable=True)
+    pre_requisitos = Column(Text, nullable=True)
     turmas = relationship("Turma", back_populates="disciplina")
 
 

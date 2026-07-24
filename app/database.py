@@ -52,6 +52,9 @@ def _migrar_colunas_novas():
         "turmas": {
             "vagas_reservadas": "INTEGER NOT NULL DEFAULT 0",
         },
+        "disciplinas": {
+            "pre_requisitos": "TEXT",
+        },
     }
 
     with engine.begin() as conn:

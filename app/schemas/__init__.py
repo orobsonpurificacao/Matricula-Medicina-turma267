@@ -109,6 +109,7 @@ class DisciplinaOut(BaseModel):
     semestre: int
     creditos: int
     descricao: Optional[str] = None
+    pre_requisitos: Optional[str] = None
     turmas: List[TurmaOut] = []
     model_config = {"from_attributes": True}
 

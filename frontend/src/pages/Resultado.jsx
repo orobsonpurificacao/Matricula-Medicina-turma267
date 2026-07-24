@@ -11,7 +11,7 @@ const CORES = [
 const STATUS_INFO = {
   pendente: { label: "Aguardando processamento", cor: "border-slate-200 bg-slate-50 text-slate-600" },
   alocado: { label: "Alocado", cor: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-  fila: { label: "Em fila", cor: "border-amber-200 bg-amber-50 text-amber-700" },
+  fila: { label: "Não alocado", cor: "border-amber-200 bg-amber-50 text-amber-700" },
   alternativa_pendente: { label: "Alternativa em análise", cor: "border-amber-200 bg-amber-50 text-amber-700" },
 }
 

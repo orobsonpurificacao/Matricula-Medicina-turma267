@@ -34,6 +34,7 @@ class DisciplinaAlocacao(BaseModel):
     codigo: str
     nome: str
     semestre: int
+    pre_requisitos: str | None = None
     turmas: List[TurmaAlocacao]
 
 
@@ -124,6 +125,7 @@ def listar_alocacao(
                 codigo=d.codigo,
                 nome=d.nome,
                 semestre=d.semestre,
+                pre_requisitos=d.pre_requisitos,
                 turmas=turmas_com_dados,
             ))
 
