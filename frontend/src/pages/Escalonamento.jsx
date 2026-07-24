@@ -27,7 +27,9 @@ export default function Escalonamento() {
   const filtroLower = filtro.trim().toLowerCase()
   const listaFiltrada = filtroLower
     ? lista.filter(a =>
-        a.nome.toLowerCase().includes(filtroLower) || a.matricula.includes(filtroLower)
+        aluno.is_admin
+          ? a.nome.toLowerCase().includes(filtroLower) || a.matricula.includes(filtroLower)
+          : a.matricula.includes(filtroLower)
       )
     : lista
 
@@ -90,7 +92,7 @@ export default function Escalonamento() {
         <input
           value={filtro}
           onChange={e => setFiltro(e.target.value)}
-          placeholder="Buscar por nome ou matrícula..."
+          placeholder={aluno.is_admin ? "Buscar por nome ou matrícula..." : "Buscar por matrícula..."}
           className="mb-4 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
         />
 
@@ -108,7 +110,7 @@ export default function Escalonamento() {
                   <th className="w-16 px-4 py-2.5 text-xs font-medium">Posição</th>
                   <th className="px-2 py-2.5 text-xs font-medium">CR</th>
                   <th className="px-2 py-2.5 text-xs font-medium">Matrícula</th>
-                  <th className="px-4 py-2.5 text-xs font-medium">Nome</th>
+                  {aluno.is_admin && <th className="px-4 py-2.5 text-xs font-medium">Nome</th>}
                   <th className="px-4 py-2.5 text-xs font-medium">Motivo</th>
                 </tr>
               </thead>
@@ -122,11 +124,16 @@ export default function Escalonamento() {
                     >
                       <td className="px-4 py-2.5 text-slate-500">{a.posicao}</td>
                       <td className="px-2 py-2.5 text-slate-500">{a.cr.toFixed(4)}</td>
-                      <td className="px-2 py-2.5 text-slate-500">{a.matricula}</td>
-                      <td className="px-4 py-2.5 font-medium text-slate-800">
-                        {a.nome}
-                        {souEu && <span className="ml-1.5 text-orange-600">(você)</span>}
+                      <td className="px-2 py-2.5 text-slate-500">
+                        {a.matricula}
+                        {souEu && !aluno.is_admin && <span className="ml-1.5 text-orange-600">(você)</span>}
                       </td>
+                      {aluno.is_admin && (
+                        <td className="px-4 py-2.5 font-medium text-slate-800">
+                          {a.nome}
+                          {souEu && <span className="ml-1.5 text-orange-600">(você)</span>}
+                        </td>
+                      )}
                       <td className="px-4 py-2.5">
                         {a.motivo_prioridade && (
                           <span className="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-orange-700">
