@@ -6,6 +6,8 @@ primeiro — e entre os prioritários, a ordem é a que o admin definiu na mão
 (ordem_prioridade: 1º, 2º, 3º...), não o CR. Só depois de esgotar quem tem
 prioridade é que o resto entra, ordenado por CR.
 
+Empate de CR: desempata pela matrícula, menor na frente.
+
 Tanto a lista de escalonamento (app/routers/escalonamento.py, só mostra)
 quanto a alocação de vagas (app/alocacao.py, decide de verdade quem fica
 com a vaga) usam essa mesma função — a posição de alguém na lista é
@@ -16,6 +18,13 @@ from sqlalchemy.orm import Session
 from app.models import Aluno
 
 
+def _matricula_para_ordenar(aluno: Aluno) -> str:
+    # Matrícula é numérica na prática — zfill garante que "99" venha
+    # depois de "225116655" na comparação, e não antes (como aconteceria
+    # comparando string pura, onde "2" < "9").
+    return aluno.matricula.zfill(20)
+
+
 def ordem_geral(db: Session) -> list[Aluno]:
     alunos = db.query(Aluno).all()
 
@@ -23,10 +32,10 @@ def ordem_geral(db: Session) -> list[Aluno]:
         if a.ordem_prioridade is not None:
             # Bucket 0: prioritários, na ordem manual que o admin definiu.
             # Empate na mesma ordem manual (não deveria acontecer, mas se
-            # acontecer): desempata por CR, só pra ter um resultado estável.
-            return (0, a.ordem_prioridade, -a.cr, a.nome)
-        # Bucket 1: todo mundo mais, por CR desc.
-        return (1, 0, -a.cr, a.nome)
+            # acontecer): desempata por CR, depois por matrícula.
+            return (0, a.ordem_prioridade, -a.cr, _matricula_para_ordenar(a))
+        # Bucket 1: todo mundo mais, por CR desc, empate por matrícula.
+        return (1, 0, -a.cr, _matricula_para_ordenar(a))
 
     return sorted(alunos, key=chave)
 
